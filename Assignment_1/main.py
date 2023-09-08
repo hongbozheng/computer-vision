@@ -145,15 +145,16 @@ def ncc(a: numpy.ndarray, b: numpy.ndarray):
 
 
 def find_disp(metric: str, base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image, disp_range: int) -> tuple[tuple[int, int], float]:
-    if metric not in ["SSD", "SSD_EDGES", "NCC"]:
+    if metric not in ["SSD", "SSD_EDGES", "NCC", "NCC_EDGES"]:
         print("[ERROR]: Invalid metric for finding displacements.")
         exit(1)
 
-    best_score = float('-inf') if metric == "NCC" else float('inf')
+    best_score = float('inf') if metric == "SSD" or metric == "SSD_EDGES" else float('-inf')
+
     disp = (0, 0)
     base_ch_arr = numpy.asarray(base_ch_img)
 
-    if metric == "SSD_EDGES":
+    if metric == "SSD_EDGES" or "NCC_EDGES":
         base_ch_edges = cv2.Canny(image=base_ch_arr, threshold1=100, threshold2=200)
 
     for dy in range(-disp_range, disp_range+1):
@@ -172,6 +173,12 @@ def find_disp(metric: str, base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image, 
                     disp = (dy, dx)
             elif metric == "NCC":
                 score = ncc(a=base_ch_arr, b=cmp_ch_arr)
+                if score >= best_score:
+                    best_score = score
+                    disp = (dy, dx)
+            elif metric == "NCC_EDGES":
+                cmp_ch_edges = cv2.Canny(image=cmp_ch_arr, threshold1=100, threshold2=200)
+                score = ncc(a=base_ch_edges, b=cmp_ch_edges)
                 if score >= best_score:
                     best_score = score
                     disp = (dy, dx)
@@ -195,7 +202,7 @@ def find_best_disp(metric: str, b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.I
 
     if metric == "SSD" or "SSD_EDGES":
         disp_info = min(disp_map, key=lambda k: int(disp_map[k]))
-    elif metric == "NCC":
+    elif metric == "NCC" or "NCC_EDGES":
         disp_info = max(disp_map, key=lambda k: int(disp_map[k]))
 
     return disp_info
