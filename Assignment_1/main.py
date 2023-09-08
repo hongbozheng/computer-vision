@@ -143,26 +143,27 @@ def split_image(image: PIL.Image):
 def ncc(a, b):
     return ((a/numpy.linalg.norm(a)) * (b/numpy.linalg.norm(b))).ravel().sum()
 
-def find_disp(metric: str, base_ch_image: PIL.Image, cmp_ch_image: PIL.Image, disp_range: int):
+
+def find_disp(metric: str, base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image, disp_range: int):
     if metric not in ["SSD", "SSD_EDGES", "NCC"]:
         print("[ERROR]: Invalid metric for finding displacements.")
         exit(1)
 
     best_loss = float('inf')
     disp = (0, 0)
-    base_ch_arr = numpy.asarray(base_ch_image)
+    base_ch_arr = numpy.asarray(base_ch_img)
 
     if metric == "SSD_EDGES":
-        base_ch_arr_edges = cv2.Canny(image=base_ch_arr, threshold1=100, threshold2=200)
+        base_ch_edges = cv2.Canny(image=base_ch_arr, threshold1=100, threshold2=200)
 
     for dy in range(-disp_range, disp_range+1):
         for dx in range(-disp_range, disp_range+1):
-            cmp_ch_arr = numpy.roll(a=cmp_ch_image, shift=[dy, dx], axis=(0, 1))
+            cmp_ch_arr = numpy.roll(a=cmp_ch_img, shift=[dy, dx], axis=(0, 1))
             if metric == "SSD":
                 loss = numpy.linalg.norm((base_ch_arr - cmp_ch_arr))
             elif metric == "SSD_EDGES":
-                cmp_ch_arr_edges = cv2.Canny(image=cmp_ch_arr, threshold1=100, threshold2=200)
-                loss = numpy.linalg.norm((base_ch_arr_edges - cmp_ch_arr_edges))
+                cmp_ch_edges = cv2.Canny(image=cmp_ch_arr, threshold1=100, threshold2=200)
+                loss = numpy.linalg.norm((base_ch_edges - cmp_ch_edges))
             elif metric == "NCC":
                 loss = ncc(a=base_ch_arr, b=cmp_ch_arr)
             if loss <= best_loss:
@@ -170,32 +171,54 @@ def find_disp(metric: str, base_ch_image: PIL.Image, cmp_ch_image: PIL.Image, di
                 disp = (dy, dx)
     print(disp, best_loss)
 
-    return disp
+    return disp, best_loss
 
-def channel_overlap(base_channel, cmp_channel, disp):
-    (image_0_width, image_0_height) = base_channel.size
-    (image_1_width, image_1_height) = cmp_channel.size
-    (dy, dx) = disp
-    base_channel_x0 = max(0, dx)
-    base_channel_y0 = max(0, dy)
-    base_channel_x1 = image_0_width if dx >= 0 else image_0_width + dx
-    base_channel_y1 = image_0_height if dy >= 0 else image_0_height + dy
-    cmp_channel_x0 = abs(min(0, dx))
-    cmp_channel_y0 = abs(min(0, dy))
-    cmp_channel_x1 = image_1_width if dx <= 0 else image_1_width - dx
-    cmp_channel_y1 = image_1_height if dy <= 0 else image_1_height - dy
+
+def find_best_disp(metric: str, b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.Image, r_ch_img: PIL.Image.Image, disp_range: int):
+    disp_map = {}
+    disp_g, loss_g = find_disp(metric=metric, base_ch_img=b_ch_img, cmp_ch_img=g_ch_img, disp_range=disp_range)
+    disp_r, loss_r = find_disp(metric=metric, base_ch_img=b_ch_img, cmp_ch_img=r_ch_img, disp_range=disp_range)
+    disp_map[('B', disp_g, disp_r)] = loss_g + loss_r
+    disp_b, loss_b = find_disp(metric=metric, base_ch_img=g_ch_img, cmp_ch_img=b_ch_img, disp_range=disp_range)
+    disp_r, loss_r = find_disp(metric=metric, base_ch_img=g_ch_img, cmp_ch_img=r_ch_img, disp_range=disp_range)
+    disp_map[('G', disp_b, disp_r)] = loss_b + loss_r
+    disp_b, loss_b = find_disp(metric=metric, base_ch_img=r_ch_img, cmp_ch_img=b_ch_img, disp_range=disp_range)
+    disp_g, loss_g = find_disp(metric=metric, base_ch_img=r_ch_img, cmp_ch_img=g_ch_img, disp_range=disp_range)
+    disp_map[('R', disp_b, disp_r)] = loss_b + loss_g
+    disp_info = min(disp_map, key=lambda k: int(disp_map[k]))
+
+    return disp_info
+
+
+def channel_overlap(base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image.Image, disp: tuple[int, int]):
+    base_ch_img_width, base_ch_img_height = base_ch_img.size
+    cmp_ch_img_width, cmp_ch_img_height = cmp_ch_img.size
+    dy, dx = disp
+    base_ch_img_x0 = max(0, dx)
+    base_ch_img_y0 = max(0, dy)
+    base_ch_img_x1 = base_ch_img_width if dx >= 0 else base_ch_img_width + dx
+    base_ch_img_y1 = base_ch_img_height if dy >= 0 else base_ch_img_height + dy
+    cmp_ch_img_x0 = abs(min(0, dx))
+    cmp_ch_img_y0 = abs(min(0, dy))
+    cmp_ch_img_x1 = cmp_ch_img_width if dx <= 0 else cmp_ch_img_width - dx
+    cmp_ch_img_y1 = cmp_ch_img_height if dy <= 0 else cmp_ch_img_height - dy
 
     # print(target_image_x0, target_image_y0, target_image_x1, target_image_y1)
     # print(src_image_x0, src_image_y0, src_image_x1, src_image_y1)
 
-    base_channel_coord = (base_channel_x0, base_channel_y0, base_channel_x1, base_channel_y1)
-    cmp_channel_coord = (cmp_channel_x0, cmp_channel_y0, cmp_channel_x1, cmp_channel_y1)
+    base_ch_img_coord = (base_ch_img_x0, base_ch_img_y0, base_ch_img_x1, base_ch_img_y1)
+    cmp_ch_img_coord = (cmp_ch_img_x0, cmp_ch_img_y0, cmp_ch_img_x1, cmp_ch_img_y1)
 
-    return base_channel_coord, cmp_channel_coord
+    return base_ch_img_coord, cmp_ch_img_coord
+
+
+def bgr_channel_overlap():
+    return
+
 
 def stack_bgr_channels(target_image, src_image_0, src_image_1, disp_0, disp_1):
-    target_image_coord_0, src_image_0_coord = channel_overlap(base_channel=target_image, cmp_channel=src_image_0, disp=disp_0)
-    target_image_coord_1, src_image_1_coord = channel_overlap(base_channel=target_image, cmp_channel=src_image_1, disp=disp_1)
+    target_image_coord_0, src_image_0_coord = channel_overlap(base_ch_img=target_image, cmp_ch_img=src_image_0, disp=disp_0)
+    target_image_coord_1, src_image_1_coord = channel_overlap(base_ch_img=target_image, cmp_ch_img=src_image_1, disp=disp_1)
     target_image_x0 = max(target_image_coord_0[0], target_image_coord_1[0])
     target_image_y0 = max(target_image_coord_0[1], target_image_coord_1[1])
     target_image_x1 = min(target_image_coord_0[2], target_image_coord_1[2])
@@ -281,8 +304,12 @@ def main():
     image = rm_border(image=image, width=35, white_thres=245, black_thres=35)
     image_0, image_1, image_2 = split_image(image=image)
 
-    disp_0 = find_disp(metric="NCC", base_ch_image=image_0, cmp_ch_image=image_1, disp_range=15)
-    disp_1 = find_disp(metric="NCC", base_ch_image=image_0, cmp_ch_image=image_2, disp_range=15)
+    # disp_0, _ = find_disp(metric="NCC", base_ch_img=image_0, cmp_ch_img=image_1, disp_range=15)
+    # disp_1, _ = find_disp(metric="NCC", base_ch_img=image_0, cmp_ch_img=image_2, disp_range=15)
+
+    disp_info = find_best_disp(metric="NCC", b_ch_img=image_0, g_ch_img=image_1, r_ch_img=image_2, disp_range=15)
+    print(disp_info)
+    exit(1)
 
     stack_bgr_channels(target_image=image_0, src_image_0=image_1, src_image_1=image_2, disp_0=disp_0, disp_1=disp_1)
 
