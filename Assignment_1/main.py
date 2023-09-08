@@ -140,7 +140,7 @@ def split_image(image: PIL.Image.Image) -> tuple[PIL.Image.Image, PIL.Image.Imag
     # image_.show()
 
 
-def ncc(a, b):
+def ncc(a: numpy.ndarray, b: numpy.ndarray):
     return ((a/numpy.linalg.norm(a)) * (b/numpy.linalg.norm(b))).ravel().sum()
 
 
@@ -149,7 +149,7 @@ def find_disp(metric: str, base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image, 
         print("[ERROR]: Invalid metric for finding displacements.")
         exit(1)
 
-    best_loss = float('inf')
+    best_score = float('-inf') if metric == "NCC" else float('inf')
     disp = (0, 0)
     base_ch_arr = numpy.asarray(base_ch_img)
 
@@ -160,18 +160,25 @@ def find_disp(metric: str, base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image, 
         for dx in range(-disp_range, disp_range+1):
             cmp_ch_arr = numpy.roll(a=cmp_ch_img, shift=[dy, dx], axis=(0, 1))
             if metric == "SSD":
-                loss = numpy.linalg.norm((base_ch_arr - cmp_ch_arr))
+                score = numpy.linalg.norm((base_ch_arr - cmp_ch_arr))
+                if score <= best_score:
+                    best_score = score
+                    disp = (dy, dx)
             elif metric == "SSD_EDGES":
                 cmp_ch_edges = cv2.Canny(image=cmp_ch_arr, threshold1=100, threshold2=200)
-                loss = numpy.linalg.norm((base_ch_edges - cmp_ch_edges))
+                score = numpy.linalg.norm((base_ch_edges - cmp_ch_edges))
+                if score <= best_score:
+                    best_score = score
+                    disp = (dy, dx)
             elif metric == "NCC":
-                loss = ncc(a=base_ch_arr, b=cmp_ch_arr)
-            if loss <= best_loss:
-                best_loss = loss
-                disp = (dy, dx)
-    print(disp, best_loss)
+                score = ncc(a=base_ch_arr, b=cmp_ch_arr)
+                if score >= best_score:
+                    best_score = score
+                    disp = (dy, dx)
 
-    return disp, best_loss
+    print(disp, best_score)
+
+    return disp, best_score
 
 
 def find_best_disp(metric: str, b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.Image, r_ch_img: PIL.Image.Image, disp_range: int) -> tuple[str, tuple[int, int], tuple[int, int]]:
@@ -184,8 +191,12 @@ def find_best_disp(metric: str, b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.I
     disp_map[('G', disp_b, disp_r)] = loss_b + loss_r
     disp_b, loss_b = find_disp(metric=metric, base_ch_img=r_ch_img, cmp_ch_img=b_ch_img, disp_range=disp_range)
     disp_g, loss_g = find_disp(metric=metric, base_ch_img=r_ch_img, cmp_ch_img=g_ch_img, disp_range=disp_range)
-    disp_map[('R', disp_b, disp_r)] = loss_b + loss_g
-    disp_info = min(disp_map, key=lambda k: int(disp_map[k]))
+    disp_map[('R', disp_b, disp_g)] = loss_b + loss_g
+
+    if metric == "SSD" or "SSD_EDGES":
+        disp_info = min(disp_map, key=lambda k: int(disp_map[k]))
+    elif metric == "NCC":
+        disp_info = max(disp_map, key=lambda k: int(disp_map[k]))
 
     return disp_info
 
@@ -234,14 +245,6 @@ def bgr_channel_overlap(base_ch_img, cmp_ch_0_img, cmp_ch_1_img, disp_0, disp_1)
 
     return base_ch_coord, cmp_ch_0_coord, cmp_ch_1_coord
 
-    base_ch_arr = numpy.asarray(base_ch_img)
-    print(base_ch_arr.shape)
-    cmp_ch_0_arr = numpy.asarray(cmp_ch_0_img)
-    cmp_ch_1_arr = numpy.asarray(cmp_ch_1_img)
-    base_ch_arr = base_ch_arr[base_ch_coord[1]:base_ch_coord[3], base_ch_coord[0]:base_ch_coord[2]]
-    cmp_ch_0_arr = cmp_ch_0_arr[cmp_ch_0_coord[1]:cmp_ch_0_coord[3], cmp_ch_0_coord[0]:cmp_ch_0_coord[2]]
-    cmp_ch_1_arr = cmp_ch_1_arr[cmp_ch_1_coord[1]:cmp_ch_1_coord[3], cmp_ch_1_coord[0]:cmp_ch_1_coord[2]]
-
     # (target_image_arr_width, target_image_arr_height) = target_image_arr.shape
     # (src_image_0_arr_width, src_image_0_arr_height) = src_image_0_arr.shape
     # (src_image_1_arr_width, src_image_1_arr_height) = src_image_1_arr.shape
@@ -259,11 +262,6 @@ def bgr_channel_overlap(base_ch_img, cmp_ch_0_img, cmp_ch_1_img, disp_0, disp_1)
     # target_image_arr = numpy.asarray(target_image)
     # src_image_0_arr = numpy.asarray(src_image_0)
     # src_image_1_arr = numpy.asarray(src_image_1)
-
-    print(base_ch_arr.shape, cmp_ch_0_arr.shape, cmp_ch_1_arr.shape)
-    image = numpy.dstack(tup=(base_ch_arr, cmp_ch_0_arr, cmp_ch_1_arr))
-    image = PIL.Image.fromarray(image)
-    image.show()
 
     # image_0_width, image_0_height = image_0.size
     # image_1_width, image_1_height = image_1.size
@@ -305,30 +303,55 @@ def stack_bgr_channels(b_ch_img, g_ch_img, r_ch_img, base_ch, disp_0, disp_1):
         exit(1)
 
     if base_ch == 'B':
+        b_ch_coord, g_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_img=b_ch_img, cmp_ch_0_img=g_ch_img, cmp_ch_1_img=r_ch_img, disp_0=disp_0, disp_1=disp_1)
         pass
     elif base_ch == 'G':
+        g_ch_coord, b_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_img=g_ch_img, cmp_ch_0_img=b_ch_img, cmp_ch_1_img=r_ch_img, disp_0=disp_0, disp_1=disp_1)
         pass
     elif base_ch == 'R':
+        r_ch_coord, b_ch_coord, g_ch_coord = bgr_channel_overlap(base_ch_img=r_ch_img, cmp_ch_0_img=b_ch_img, cmp_ch_1_img=g_ch_img, disp_0=disp_0, disp_1=disp_1)
         pass
+
+    b_ch_arr = numpy.asarray(b_ch_img)
+    print(b_ch_arr.shape)
+    g_ch_arr = numpy.asarray(g_ch_img)
+    r_ch_arr = numpy.asarray(r_ch_img)
+    b_ch_arr = b_ch_arr[b_ch_coord[1]:b_ch_coord[3], b_ch_coord[0]:b_ch_coord[2]]
+    g_ch_arr = g_ch_arr[g_ch_coord[1]:g_ch_coord[3], g_ch_coord[0]:g_ch_coord[2]]
+    r_ch_arr = r_ch_arr[r_ch_coord[1]:r_ch_coord[3], r_ch_coord[0]:r_ch_coord[2]]
+
+    print(b_ch_arr.shape, g_ch_arr.shape, r_ch_arr.shape)
+    image = numpy.dstack(tup=(r_ch_arr, g_ch_arr, b_ch_arr))
+    image = PIL.Image.fromarray(image)
+    image.show()
 
     return
 
 
 def main():
-    image = PIL.Image.open(fp=IMAGES[0])
-    image = rm_border(image=image, width=35, white_thres=245, black_thres=35)
-    image_0, image_1, image_2 = split_image(image=image)
+    for image in IMAGES:
+        image = PIL.Image.open(fp=image)
+        image = rm_border(image=image, width=35, white_thres=245, black_thres=35)
+        image_0, image_1, image_2 = split_image(image=image)
 
-    # disp_0, _ = find_disp(metric="NCC", base_ch_img=image_0, cmp_ch_img=image_1, disp_range=15)
-    # disp_1, _ = find_disp(metric="NCC", base_ch_img=image_0, cmp_ch_img=image_2, disp_range=15)
+        # disp_0, _ = find_disp(metric="NCC", base_ch_img=image_0, cmp_ch_img=image_1, disp_range=15)
+        # disp_1, _ = find_disp(metric="NCC", base_ch_img=image_0, cmp_ch_img=image_2, disp_range=15)
 
-    disp_info = find_best_disp(metric="SSD_EDGES", b_ch_img=image_0, g_ch_img=image_1, r_ch_img=image_2, disp_range=15)
-    print(disp_info)
+        disp_info = find_best_disp(metric="SSD", b_ch_img=image_0, g_ch_img=image_1, r_ch_img=image_2, disp_range=10)
+        print(disp_info)
 
-    disp_0 = disp_info[1]
-    disp_1 = disp_info[2]
+        base_ch, disp_0, disp_1 = disp_info
+        stack_bgr_channels(b_ch_img=image_0, g_ch_img=image_1, r_ch_img=image_2, base_ch=base_ch, disp_0=disp_0, disp_1=disp_1)
 
-    bgr_channel_overlap(base_ch_img=image_0, cmp_ch_0_img=image_1, cmp_ch_1_img=image_2, disp_0=disp_0, disp_1=disp_1)
+    # image_0_arr = numpy.asarray(image_0)
+    # image_1_arr = numpy.asarray(image_1)
+    # image_2_arr = numpy.asarray(image_2)
+    # image_1_arr = numpy.roll(a=image_1_arr, shift=disp_0, axis=(0, 1))
+    # image_2_arr = numpy.roll(a=image_2_arr, shift=disp_1, axis=(0, 1))
+    # image = numpy.dstack(tup=(image_2_arr, image_1_arr, image_0_arr))
+    # image = PIL.Image.fromarray(image)
+    # image.show()
+
 
     # image = PIL.Image.open(fp=IMAGES[0])
     # image_0 = image.crop(box=IMAGE_BOXES[0][0])
