@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
+import config
 import cv2
+import logger
 import numpy
+import os
 import PIL.Image
+import skimage
 
 IMAGE_BOXES = [[(27, 25, 383, 340),     # 357 x 315 (24, 25, 385, 343) 361 x 318
                 (25, 361, 381, 676),    #           (24, 351, 385, 686) 361 x 335
@@ -26,18 +30,17 @@ BLACK_PIXEL_THRESHOLD = 35
 WHITE_PIXEL_THRESHOLD = 255
 
 
-def rm_border(image: PIL.Image.Image, width: int, white_thres: int, black_thres: int) -> PIL.Image.Image:
+def rm_border(img_arr: numpy.ndarray, border_width_thres: int, white_thres: int, black_thres: int) -> numpy.ndarray:
     """
     Remove the white and black borders of the image
 
-    :param image: input image
-    :param width: border width to search
+    :param img_arr: input image array
+    :param border_width_thres: border width to search
     :param white_thres: white pixel threshold
     :param black_thres: black pixel threshold
-    :return: cropped image
+    :return: cropped image array
     """
 
-    img_arr = numpy.asarray(image)
     idx_left_list = []
     idx_right_list = []
     idx_top_list = []
@@ -48,9 +51,9 @@ def rm_border(image: PIL.Image.Image, width: int, white_thres: int, black_thres:
         idx_l = 0
         idx_r = img_arr.shape[1]
         for (idx_col, pixel_val) in enumerate(row):
-            if idx_col < width and (pixel_val <= black_thres or pixel_val >= white_thres):
+            if idx_col < border_width_thres and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_l = max(idx_l, idx_col)
-            elif idx_col >= img_arr.shape[1]-width and (pixel_val <= black_thres or pixel_val >= white_thres):
+            elif idx_col >= img_arr.shape[1]-border_width_thres and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_r = min(idx_r, idx_col)
         idx_left_list.append(idx_l)
         idx_right_list.append(idx_r)
@@ -61,9 +64,9 @@ def rm_border(image: PIL.Image.Image, width: int, white_thres: int, black_thres:
         idx_b = img_arr.shape[0]
         for idx_row in range(img_arr.shape[0]):
             pixel_val = img_arr[idx_row][idx_col]
-            if idx_row < width and (pixel_val <= black_thres or pixel_val >= white_thres):
+            if idx_row < border_width_thres and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_t = max(idx_t, idx_row)
-            elif idx_row >= img_arr.shape[0]-width and (pixel_val <= black_thres or pixel_val >= white_thres):
+            elif idx_row >= img_arr.shape[0]-border_width_thres and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_b = min(idx_b, idx_row)
         idx_top_list.append(idx_t)
         idx_btm_list.append(idx_b)
@@ -76,83 +79,79 @@ def rm_border(image: PIL.Image.Image, width: int, white_thres: int, black_thres:
 
     # crop the image with the proposed coordinate
     img_arr = img_arr[idx_top:idx_btm, idx_left:idx_right]
-    image = PIL.Image.fromarray(img_arr)
 
-    return image
+    return img_arr
 
 
-def resize_image(image: PIL.Image.Image, width: int, height: int) -> PIL.Image.Image:
+def resize_image(img_arr: numpy.ndarray, width: int, height: int) -> numpy.ndarray:
     """
     Resize the image to the desire width and height by cropping even pixels on both side
 
-    :param image: input image
+    :param img_arr: input image array
     :param width: desire image width
     :param height: desire image height
-    :return: resized image
+    :return: resized image array
     """
 
-    image_width, image_height = image.size
-    image_arr = numpy.asarray(image)
+    img_h, img_w = img_arr.shape
 
     # crop the top and bottom with even numbers of pixels
-    if image_height > height:
-        height_diff = abs(image_height - height)
-        if height_diff % 2 == 0:
-            image_arr = image_arr[height_diff//2:image_height-height_diff//2, :]
+    if img_h > height:
+        h_diff = abs(img_h - height)
+        if h_diff % 2 == 0:
+            img_arr = img_arr[h_diff//2:img_h-h_diff//2, :]
         else:
-            image_arr = image_arr[height_diff//2:image_height-(height_diff//2+1), :]
+            img_arr = img_arr[h_diff//2:img_h-(h_diff//2+1), :]
 
     # crop the left and right with even numbers of pixels
-    if image_width > width:
-        width_diff = abs(image_width - width)
-        if width_diff % 2 == 0:
-            image_arr = image_arr[:, width_diff//2:image_width-width_diff//2]
+    if img_w > width:
+        w_diff = abs(img_w - width)
+        if w_diff % 2 == 0:
+            img_arr = img_arr[:, w_diff//2:img_w-w_diff//2]
         else:
-            image_arr = image_arr[:, width_diff//2:image_width-(width_diff//2+1)]
+            img_arr = img_arr[:, w_diff//2:img_w-(w_diff//2+1)]
 
-    image = PIL.Image.fromarray(obj=image_arr)
-    return image
+    return img_arr
 
 
-def split_image(image: PIL.Image.Image) -> tuple[PIL.Image.Image, PIL.Image.Image, PIL.Image.Image]:
+def split_image(img_arr: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
     Split the B, G, R channels from the image by searching the black borders
     in the range of [height//3 - BORDER_THRESHOLD, height//3 + BORDER_THRESHOLD]
 
-    :param image: input image
-    :return: B, G, R channels of the image
+    :param img_arr: input image array
+    :return: B, G, R channels of the image array
     """
 
-    width, height = image.size
-    sub_image_height = height // 3
-    sub_image_y_coord = []
-    image_arr = numpy.asarray(image)
+    height, width = img_arr.shape
+    sub_img_height = height // 3
+    sub_img_y_coord = []
 
     # search for the y coordinates to split the B, G, R channels
     for i in range(1, 3):
         y_coord_pixel_val = {}
-        for j in range(i*sub_image_height-BORDER_THRESHOLD, i*sub_image_height+BORDER_THRESHOLD):
-            y_coord_pixel_val[j] = sum(image_arr[j][width//2-BORDER_THRESHOLD:width//2+BORDER_THRESHOLD])
-        sub_image_y_coord.append(min(y_coord_pixel_val, key=y_coord_pixel_val.get))
+        for j in range(i*sub_img_height-config.single_scale_alignment_border_width_threshold, i*sub_img_height+config.single_scale_alignment_border_width_threshold):
+            y_coord_pixel_val[j] = sum(img_arr[j][width//2-config.single_scale_alignment_border_width_threshold:width//2+config.single_scale_alignment_border_width_threshold])
+        sub_img_y_coord.append(min(y_coord_pixel_val, key=y_coord_pixel_val.get))
 
     # crop the image into B, G, R channels
-    image_0 = image.crop(box=(0, 0, width, sub_image_y_coord[0]))
-    image_1 = image.crop(box=(0, sub_image_y_coord[0], width, sub_image_y_coord[1]))
-    image_2 = image.crop(box=(0, sub_image_y_coord[1], width, height))
+    b_ch_img = img_arr[0:sub_img_y_coord[0], 0:width]
+    g_ch_img = img_arr[sub_img_y_coord[0]:sub_img_y_coord[1], 0:width]
+    r_ch_img = img_arr[sub_img_y_coord[1]:height, 0:width]
 
     # remove the border for the B, G, R channels
-    image_0 = rm_border(image=image_0, width=5, white_thres=255, black_thres=15)
-    image_1 = rm_border(image=image_1, width=5, white_thres=255, black_thres=15)
-    image_2 = rm_border(image=image_2, width=5, white_thres=255, black_thres=15)
+    b_ch_img = rm_border(img_arr=b_ch_img, border_width_thres=5, white_thres=255, black_thres=15)
+    g_ch_img = rm_border(img_arr=g_ch_img, border_width_thres=5, white_thres=255, black_thres=15)
+    r_ch_img = rm_border(img_arr=r_ch_img, border_width_thres=5, white_thres=255, black_thres=15)
 
     # resize B, G, R channels to the minimum size among them
-    min_width = min(image_0.size[0], image_1.size[0], image_2.size[0])
-    min_height = min(image_0.size[1], image_1.size[1], image_2.size[1])
-    image_0 = resize_image(image=image_0, width=min_width, height=min_height)
-    image_1 = resize_image(image=image_1, width=min_width, height=min_height)
-    image_2 = resize_image(image=image_2, width=min_width, height=min_height)
+    min_height = min(b_ch_img.shape[0], g_ch_img.shape[0], r_ch_img.shape[0])
+    min_width = min(b_ch_img.shape[1], g_ch_img.shape[1], r_ch_img.shape[1])
+    b_ch_img = resize_image(img_arr=b_ch_img, width=min_width, height=min_height)
+    g_ch_img = resize_image(img_arr=g_ch_img, width=min_width, height=min_height)
+    r_ch_img = resize_image(img_arr=r_ch_img, width=min_width, height=min_height)
 
-    return image_0, image_1, image_2
+    return b_ch_img, g_ch_img, r_ch_img
 
 
 def ncc(a: numpy.ndarray, b: numpy.ndarray) -> float:
@@ -167,25 +166,19 @@ def ncc(a: numpy.ndarray, b: numpy.ndarray) -> float:
     return ((a/numpy.linalg.norm(a)) * (b/numpy.linalg.norm(b))).ravel().sum()
 
 
-def find_disp(metric: str, base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image, disp_range: int) -> tuple[tuple[int, int], float]:
+def find_disp(metric: str, base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
     """
     Find the displacement of the compare channel image with respect to the base channel image
 
     :param metric: metric to compute the score between two images
-    :param base_ch_img: base channel image to compare
-    :param cmp_ch_img: compare channel image
+    :param base_ch_arr: base channel image array to compare
+    :param cmp_ch_arr: compare channel image array
     :param disp_range: displacement range to search
     :return: displacement and best score
     """
 
-    if metric not in ["SSD", "SSD_EDGES", "NCC", "NCC_EDGES"]:
-        print("[ERROR]: Invalid metric for finding displacements.")
-        exit(1)
-
     best_score = float('inf') if metric == "SSD" or metric == "SSD_EDGES" else float('-inf')
-
     disp = (0, 0)
-    base_ch_arr = numpy.asarray(base_ch_img)
 
     if metric == "SSD_EDGES" or "NCC_EDGES":
         base_ch_edges = cv2.Canny(image=base_ch_arr, threshold1=100, threshold2=200)
@@ -193,25 +186,25 @@ def find_disp(metric: str, base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image, 
     # search for the best displacement in x-axis and y-axis
     for dy in range(-disp_range, disp_range+1):
         for dx in range(-disp_range, disp_range+1):
-            cmp_ch_arr = numpy.roll(a=cmp_ch_img, shift=[dy, dx], axis=(0, 1))
+            cmp_ch_arr_shifted = numpy.roll(a=cmp_ch_arr, shift=[dy, dx], axis=(0, 1))
             if metric == "SSD":
-                score = numpy.linalg.norm((base_ch_arr - cmp_ch_arr))
+                score = numpy.linalg.norm((base_ch_arr - cmp_ch_arr_shifted))
                 if score <= best_score:
                     best_score = score
                     disp = (dy, dx)
             elif metric == "SSD_EDGES":
-                cmp_ch_edges = cv2.Canny(image=cmp_ch_arr, threshold1=100, threshold2=200)
+                cmp_ch_edges = cv2.Canny(image=cmp_ch_arr_shifted, threshold1=100, threshold2=200)
                 score = numpy.linalg.norm((base_ch_edges - cmp_ch_edges))
                 if score <= best_score:
                     best_score = score
                     disp = (dy, dx)
             elif metric == "NCC":
-                score = ncc(a=base_ch_arr, b=cmp_ch_arr)
+                score = ncc(a=base_ch_arr, b=cmp_ch_arr_shifted)
                 if score >= best_score:
                     best_score = score
                     disp = (dy, dx)
             elif metric == "NCC_EDGES":
-                cmp_ch_edges = cv2.Canny(image=cmp_ch_arr, threshold1=100, threshold2=200)
+                cmp_ch_edges = cv2.Canny(image=cmp_ch_arr_shifted, threshold1=100, threshold2=200)
                 score = ncc(a=base_ch_edges, b=cmp_ch_edges)
                 if score >= best_score:
                     best_score = score
@@ -220,27 +213,31 @@ def find_disp(metric: str, base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image, 
     return disp, best_score
 
 
-def find_best_disp(metric: str, b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.Image, r_ch_img: PIL.Image.Image, disp_range: int) -> tuple[str, tuple[int, int], tuple[int, int]]:
+def find_best_disp(metric: str, b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_arr: numpy.ndarray, disp_range: int) -> tuple[str, tuple[int, int], tuple[int, int]]:
     """
     Find the best displacement by trying blue, green, red channel as base channel
 
     :param metric: metric to compute the score between two images
-    :param b_ch_img: blue channel image
-    :param g_ch_img: green channel image
-    :param r_ch_img: red channel image
+    :param b_ch_arr: blue channel image array
+    :param g_ch_arr: green channel image array
+    :param r_ch_arr: red channel image array
     :param disp_range: displacement range to search
     :return: displacement information (base channel, displacement for first channel, displacement for second channel)
     """
 
+    if metric not in ["SSD", "SSD_EDGES", "NCC", "NCC_EDGES"]:
+        print("[ERROR]: Invalid metric for finding displacements.")
+        exit(1)
+
     disp_map = {}
-    disp_g, loss_g = find_disp(metric=metric, base_ch_img=b_ch_img, cmp_ch_img=g_ch_img, disp_range=disp_range)
-    disp_r, loss_r = find_disp(metric=metric, base_ch_img=b_ch_img, cmp_ch_img=r_ch_img, disp_range=disp_range)
+    disp_g, loss_g = find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
+    disp_r, loss_r = find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=r_ch_arr, disp_range=disp_range)
     disp_map[('B', disp_g, disp_r)] = loss_g + loss_r
-    disp_b, loss_b = find_disp(metric=metric, base_ch_img=g_ch_img, cmp_ch_img=b_ch_img, disp_range=disp_range)
-    disp_r, loss_r = find_disp(metric=metric, base_ch_img=g_ch_img, cmp_ch_img=r_ch_img, disp_range=disp_range)
+    disp_b, loss_b = find_disp(metric=metric, base_ch_arr=g_ch_arr, cmp_ch_arr=b_ch_arr, disp_range=disp_range)
+    disp_r, loss_r = find_disp(metric=metric, base_ch_arr=g_ch_arr, cmp_ch_arr=r_ch_arr, disp_range=disp_range)
     disp_map[('G', disp_b, disp_r)] = loss_b + loss_r
-    disp_b, loss_b = find_disp(metric=metric, base_ch_img=r_ch_img, cmp_ch_img=b_ch_img, disp_range=disp_range)
-    disp_g, loss_g = find_disp(metric=metric, base_ch_img=r_ch_img, cmp_ch_img=g_ch_img, disp_range=disp_range)
+    disp_b, loss_b = find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=b_ch_arr, disp_range=disp_range)
+    disp_g, loss_g = find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
     disp_map[('R', disp_b, disp_g)] = loss_b + loss_g
 
     if metric == "SSD" or "SSD_EDGES":
@@ -251,27 +248,27 @@ def find_best_disp(metric: str, b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.I
     return disp_info
 
 
-def channel_overlap(base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image.Image, disp: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
+def channel_overlap(base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray, disp: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
     Find the overlap area between the base channel image and the compare channel image under displacement
 
-    :param base_ch_img: base channel image
-    :param cmp_ch_img: compare channel image
+    :param base_ch_arr: base channel image array
+    :param cmp_ch_arr: compare channel image array
     :param disp: displacement of compare channel image
     :return: base channel coordinate and compare channel coordinate
     """
 
-    base_ch_img_width, base_ch_img_height = base_ch_img.size
-    cmp_ch_img_width, cmp_ch_img_height = cmp_ch_img.size
+    base_ch_h, base_ch_w = base_ch_arr.shape
+    cmp_ch_h, cmp_ch_w = cmp_ch_arr.shape
     dy, dx = disp
     base_ch_x0 = max(0, dx)
     base_ch_y0 = max(0, dy)
-    base_ch_x1 = base_ch_img_width if dx >= 0 else base_ch_img_width + dx
-    base_ch_y1 = base_ch_img_height if dy >= 0 else base_ch_img_height + dy
+    base_ch_x1 = base_ch_w if dx >= 0 else base_ch_w + dx
+    base_ch_y1 = base_ch_h if dy >= 0 else base_ch_h + dy
     cmp_ch_x0 = abs(min(0, dx))
     cmp_ch_y0 = abs(min(0, dy))
-    cmp_ch_x1 = cmp_ch_img_width if dx <= 0 else cmp_ch_img_width - dx
-    cmp_ch_y1 = cmp_ch_img_height if dy <= 0 else cmp_ch_img_height - dy
+    cmp_ch_x1 = cmp_ch_w if dx <= 0 else cmp_ch_w - dx
+    cmp_ch_y1 = cmp_ch_h if dy <= 0 else cmp_ch_h - dy
 
     base_ch_coord = (base_ch_x0, base_ch_y0, base_ch_x1, base_ch_y1)
     cmp_ch_coord = (cmp_ch_x0, cmp_ch_y0, cmp_ch_x1, cmp_ch_y1)
@@ -279,20 +276,20 @@ def channel_overlap(base_ch_img: PIL.Image.Image, cmp_ch_img: PIL.Image.Image, d
     return base_ch_coord, cmp_ch_coord
 
 
-def bgr_channel_overlap(base_ch_img: PIL.Image.Image, cmp_ch_0_img: PIL.Image.Image, cmp_ch_1_img: PIL.Image.Image, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
+def bgr_channel_overlap(base_ch_arr: numpy.ndarray, cmp_ch_0_arr: numpy.ndarray, cmp_ch_1_arr: numpy.ndarray, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
     Find the overlap area between base channel image and two compare channel images
 
-    :param base_ch_img: base channel image
-    :param cmp_ch_0_img: compare channel 0 image
-    :param cmp_ch_1_img: compare channel 1 image
+    :param base_ch_arr: base channel image
+    :param cmp_ch_0_arr: compare channel 0 image array
+    :param cmp_ch_1_arr: compare channel 1 image array
     :param disp_0: displacement of compare channel 0 image
     :param disp_1: displacement of compare channel 1 image
     :return: base channel coordinate, compare channel 0 coordinate, compare channel 1 coordinate
     """
 
-    base_ch_coord_0, cmp_ch_0_coord = channel_overlap(base_ch_img=base_ch_img, cmp_ch_img=cmp_ch_0_img, disp=disp_0)
-    base_ch_coord_1, cmp_ch_1_coord = channel_overlap(base_ch_img=base_ch_img, cmp_ch_img=cmp_ch_1_img, disp=disp_1)
+    base_ch_coord_0, cmp_ch_0_coord = channel_overlap(base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_0_arr, disp=disp_0)
+    base_ch_coord_1, cmp_ch_1_coord = channel_overlap(base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_1_arr, disp=disp_1)
 
     # find base channel coordinate (the overlap region between two base channels)
     base_ch_x0 = max(base_ch_coord_0[0], base_ch_coord_1[0])
@@ -328,13 +325,13 @@ def bgr_channel_overlap(base_ch_img: PIL.Image.Image, cmp_ch_0_img: PIL.Image.Im
     return base_ch_coord, cmp_ch_0_coord, cmp_ch_1_coord
 
 
-def stack_bgr_channels(b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.Image, r_ch_img: PIL.Image.Image, base_ch: str, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> PIL.Image.Image:
+def stack_bgr_channels(b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_arr: numpy.ndarray, base_ch: str, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> numpy.ndarray:
     """
     Stack B, G, R, channel to form the final RGB image
 
-    :param b_ch_img: blue channel image
-    :param g_ch_img: green channel image
-    :param r_ch_img: red channel image
+    :param b_ch_arr: blue channel image array
+    :param g_ch_arr: green channel image array
+    :param r_ch_arr: red channel image array
     :param base_ch: which color channel is used as base channel
     :param disp_0: displacement for compare channel 0 image
     :param disp_1: displacement for compare channel 1 image
@@ -346,20 +343,73 @@ def stack_bgr_channels(b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.Image, r_c
         exit(1)
 
     if base_ch == 'B':
-        b_ch_coord, g_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_img=b_ch_img, cmp_ch_0_img=g_ch_img, cmp_ch_1_img=r_ch_img, disp_0=disp_0, disp_1=disp_1)
+        b_ch_coord, g_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_arr=b_ch_arr, cmp_ch_0_arr=g_ch_arr, cmp_ch_1_arr=r_ch_arr, disp_0=disp_0, disp_1=disp_1)
     elif base_ch == 'G':
-        g_ch_coord, b_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_img=g_ch_img, cmp_ch_0_img=b_ch_img, cmp_ch_1_img=r_ch_img, disp_0=disp_0, disp_1=disp_1)
+        g_ch_coord, b_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_arr=g_ch_arr, cmp_ch_0_arr=b_ch_arr, cmp_ch_1_arr=r_ch_arr, disp_0=disp_0, disp_1=disp_1)
     elif base_ch == 'R':
-        r_ch_coord, b_ch_coord, g_ch_coord = bgr_channel_overlap(base_ch_img=r_ch_img, cmp_ch_0_img=b_ch_img, cmp_ch_1_img=g_ch_img, disp_0=disp_0, disp_1=disp_1)
+        r_ch_coord, b_ch_coord, g_ch_coord = bgr_channel_overlap(base_ch_arr=r_ch_arr, cmp_ch_0_arr=b_ch_arr, cmp_ch_1_arr=g_ch_arr, disp_0=disp_0, disp_1=disp_1)
 
-    b_ch_arr = numpy.asarray(b_ch_img)
-    g_ch_arr = numpy.asarray(g_ch_img)
-    r_ch_arr = numpy.asarray(r_ch_img)
     b_ch_arr = b_ch_arr[b_ch_coord[1]:b_ch_coord[3], b_ch_coord[0]:b_ch_coord[2]]
     g_ch_arr = g_ch_arr[g_ch_coord[1]:g_ch_coord[3], g_ch_coord[0]:g_ch_coord[2]]
     r_ch_arr = r_ch_arr[r_ch_coord[1]:r_ch_coord[3], r_ch_coord[0]:r_ch_coord[2]]
 
-    image = numpy.dstack(tup=(r_ch_arr, g_ch_arr, b_ch_arr))
-    image = PIL.Image.fromarray(image)
+    img_arr = numpy.dstack(tup=(r_ch_arr, g_ch_arr, b_ch_arr))
 
-    return image
+    return img_arr
+
+
+def single_scale_align():
+    logger.log_info("Start single-scale alignment")
+    logger.log_info("Metric = %s" % config.metric)
+    single_scale_alignment_image_names = os.listdir(path=config.single_scale_alignment_images_dir)
+
+    for filename in single_scale_alignment_image_names:
+        logger.log_info("Processing file %s" % filename)
+        filepath = os.path.join(config.single_scale_alignment_images_dir, filename)
+        image = PIL.Image.open(fp=filepath)
+        img_arr = numpy.asarray(image)
+        img_arr = rm_border(img_arr=img_arr, border_width_thres=35, white_thres=245, black_thres=35)
+        b_ch_arr, g_ch_arr, r_ch_arr = split_image(img_arr=img_arr)
+        disp_info = find_best_disp(metric=config.metric, b_ch_arr=b_ch_arr, g_ch_arr=g_ch_arr, r_ch_arr=r_ch_arr, disp_range=10)
+        base_ch, disp_0, disp_1 = disp_info
+        img_arr = stack_bgr_channels(b_ch_arr=b_ch_arr, g_ch_arr=g_ch_arr, r_ch_arr=r_ch_arr, base_ch=base_ch, disp_0=disp_0, disp_1=disp_1)
+
+        result_image_path = os.path.join(config.single_scale_alignment_results_dir, config.metric, filename)
+        image = PIL.Image.fromarray(obj=img_arr)
+        image.save(fp=result_image_path)
+
+        if config.imshow:
+            image.show()
+
+
+def blur_and_downsize(img_arr: numpy.ndarray) -> numpy.ndarray:
+    blur_downsize_img = skimage.transform.resize(image=img_arr, output_shape=(img_arr.shape[0]//2, img_arr.shape[1]//2), anti_aliasing=True, anti_aliasing_sigma=config.anti_aliasing_sigma)
+    return blur_downsize_img
+
+
+def pyramid_find_best_disp(metric: str, b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.Image, r_ch_img: PIL.Image.Image, disp_range: int):
+
+    if metric not in ["SSD", "SSD_EDGES", "NCC", "NCC_EDGES"]:
+        print("[ERROR]: Invalid metric for finding displacements.")
+        exit(1)
+
+
+
+    return
+
+
+def multiscale_align(image):
+    img_arr = skimage.io.imread(fname=image)
+    img_arr = rm_border(img_arr=img_arr, border_width_thres=config.multiscale_alignment_border_width_threshold, white_thres=config.white_threshold, black_thres=config.black_threshold)
+    b_ch_img, g_ch_img, r_ch_img = split_image(img_arr=img_arr)
+
+    skimage.io.imshow(arr=img_arr)
+    skimage.io.show()
+    b_ch_img = blur_and_downsize(img_arr=b_ch_img)
+    skimage.io.imshow(arr=b_ch_img)
+    skimage.io.show()
+    skimage.io.imshow(arr=g_ch_img)
+    skimage.io.show()
+    skimage.io.imshow(arr=r_ch_img)
+    skimage.io.show()
+    return
