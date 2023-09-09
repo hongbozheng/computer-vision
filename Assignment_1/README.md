@@ -1,4 +1,4 @@
-# MP1 - AppSec
+# Assignment 1 - Registering Prokudin-Gorskii color separations of the Russian Empire
 ##### Instructor: D.A. Forsyth
 Deadline --- Monday, September 11th, 11:59:59 PM
 
