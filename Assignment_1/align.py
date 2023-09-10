@@ -4,7 +4,6 @@ import config
 import cv2
 import logger
 import numpy
-import os
 import PIL.Image
 import skimage
 
@@ -25,17 +24,13 @@ IMAGE_BOXES = [[(27, 25, 383, 340),     # 357 x 315 (24, 25, 385, 343) 361 x 318
                 (20, 697, 383, 1013)],  #           (24, 693, 385, 1013) 361 x 320
               ]
 
-BORDER_THRESHOLD = 25
-BLACK_PIXEL_THRESHOLD = 35
-WHITE_PIXEL_THRESHOLD = 255
 
-
-def rm_border(img_arr: numpy.ndarray, border_width_thres: int, white_thres: int, black_thres: int) -> numpy.ndarray:
+def rm_border(img_arr: numpy.ndarray, border_search_range: int, white_thres: int, black_thres: int) -> numpy.ndarray:
     """
     Remove the white and black borders of the image
 
     :param img_arr: input image array
-    :param border_width_thres: border width to search
+    :param border_search_range: border width range to search
     :param white_thres: white pixel threshold
     :param black_thres: black pixel threshold
     :return: cropped image array
@@ -51,9 +46,9 @@ def rm_border(img_arr: numpy.ndarray, border_width_thres: int, white_thres: int,
         idx_l = 0
         idx_r = img_arr.shape[1]
         for (idx_col, pixel_val) in enumerate(row):
-            if idx_col < border_width_thres and (pixel_val <= black_thres or pixel_val >= white_thres):
+            if idx_col < border_search_range and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_l = max(idx_l, idx_col)
-            elif idx_col >= img_arr.shape[1]-border_width_thres and (pixel_val <= black_thres or pixel_val >= white_thres):
+            elif idx_col >= img_arr.shape[1]-border_search_range and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_r = min(idx_r, idx_col)
         idx_left_list.append(idx_l)
         idx_right_list.append(idx_r)
@@ -64,18 +59,18 @@ def rm_border(img_arr: numpy.ndarray, border_width_thres: int, white_thres: int,
         idx_b = img_arr.shape[0]
         for idx_row in range(img_arr.shape[0]):
             pixel_val = img_arr[idx_row][idx_col]
-            if idx_row < border_width_thres and (pixel_val <= black_thres or pixel_val >= white_thres):
+            if idx_row < border_search_range and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_t = max(idx_t, idx_row)
-            elif idx_row >= img_arr.shape[0]-border_width_thres and (pixel_val <= black_thres or pixel_val >= white_thres):
+            elif idx_row >= img_arr.shape[0]-border_search_range and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_b = min(idx_b, idx_row)
         idx_top_list.append(idx_t)
         idx_btm_list.append(idx_b)
 
     # find the coordinate that is proposed the most times
-    idx_left = max(idx_left_list, key=lambda x: (x != BORDER_THRESHOLD-1, idx_left_list.count(x)))
-    idx_right = max(idx_right_list, key=lambda x: (x != img_arr.shape[1]-BORDER_THRESHOLD-1, idx_right_list.count(x)))
-    idx_top = max(idx_top_list, key=lambda x: (x != BORDER_THRESHOLD-1, idx_top_list.count(x)))
-    idx_btm = max(idx_btm_list, key=lambda x: (x != img_arr.shape[0]-BORDER_THRESHOLD-1, idx_btm_list.count(x)))
+    idx_left = max(idx_left_list, key=lambda x: (x != border_search_range-1, idx_left_list.count(x)))
+    idx_right = max(idx_right_list, key=lambda x: (x != img_arr.shape[1]-border_search_range-1, idx_right_list.count(x)))
+    idx_top = max(idx_top_list, key=lambda x: (x != border_search_range-1, idx_top_list.count(x)))
+    idx_btm = max(idx_btm_list, key=lambda x: (x != img_arr.shape[0]-border_search_range-1, idx_btm_list.count(x)))
 
     # crop the image with the proposed coordinate
     img_arr = img_arr[idx_top:idx_btm, idx_left:idx_right]
@@ -114,12 +109,13 @@ def resize_image(img_arr: numpy.ndarray, width: int, height: int) -> numpy.ndarr
     return img_arr
 
 
-def split_image(img_arr: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+def split_image(img_arr: numpy.ndarray, border_search_range: int) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
     Split the B, G, R channels from the image by searching the black borders
-    in the range of [height//3 - BORDER_THRESHOLD, height//3 + BORDER_THRESHOLD]
+    in the range of [height//3 - border_search_range, height//3 + border_search_range]
 
     :param img_arr: input image array
+    :param border_search_range: border width range to search
     :return: B, G, R channels of the image array
     """
 
@@ -130,8 +126,8 @@ def split_image(img_arr: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray, n
     # search for the y coordinates to split the B, G, R channels
     for i in range(1, 3):
         y_coord_pixel_val = {}
-        for j in range(i*sub_img_height-config.single_scale_alignment_border_width_threshold, i*sub_img_height+config.single_scale_alignment_border_width_threshold):
-            y_coord_pixel_val[j] = sum(img_arr[j][width//2-config.single_scale_alignment_border_width_threshold:width//2+config.single_scale_alignment_border_width_threshold])
+        for j in range(i*sub_img_height-border_search_range, i*sub_img_height+border_search_range):
+            y_coord_pixel_val[j] = sum(img_arr[j][width//2-border_search_range:width//2+border_search_range])
         sub_img_y_coord.append(min(y_coord_pixel_val, key=y_coord_pixel_val.get))
 
     # crop the image into B, G, R channels
@@ -140,9 +136,10 @@ def split_image(img_arr: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray, n
     r_ch_img = img_arr[sub_img_y_coord[1]:height, 0:width]
 
     # remove the border for the B, G, R channels
-    b_ch_img = rm_border(img_arr=b_ch_img, border_width_thres=5, white_thres=255, black_thres=15)
-    g_ch_img = rm_border(img_arr=g_ch_img, border_width_thres=5, white_thres=255, black_thres=15)
-    r_ch_img = rm_border(img_arr=r_ch_img, border_width_thres=5, white_thres=255, black_thres=15)
+    if config.single_scale_align:
+        b_ch_img = rm_border(img_arr=b_ch_img, border_search_range=5, white_thres=255, black_thres=15)
+        g_ch_img = rm_border(img_arr=g_ch_img, border_search_range=5, white_thres=255, black_thres=15)
+        r_ch_img = rm_border(img_arr=r_ch_img, border_search_range=5, white_thres=255, black_thres=15)
 
     # resize B, G, R channels to the minimum size among them
     min_height = min(b_ch_img.shape[0], g_ch_img.shape[0], r_ch_img.shape[0])
@@ -180,7 +177,7 @@ def find_disp(metric: str, base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray
     best_score = float('inf') if metric == "SSD" or metric == "SSD_EDGES" else float('-inf')
     disp = (0, 0)
 
-    if metric == "SSD_EDGES" or "NCC_EDGES":
+    if metric == "SSD_EDGES" or metric == "NCC_EDGES":
         base_ch_edges = cv2.Canny(image=base_ch_arr, threshold1=100, threshold2=200)
 
     # search for the best displacement in x-axis and y-axis
@@ -226,7 +223,7 @@ def find_best_disp(metric: str, b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray
     """
 
     if metric not in ["SSD", "SSD_EDGES", "NCC", "NCC_EDGES"]:
-        print("[ERROR]: Invalid metric for finding displacements.")
+        logger.log_error("Invalid metric for finding displacements.")
         exit(1)
 
     disp_map = {}
@@ -339,7 +336,7 @@ def stack_bgr_channels(b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_ar
     """
 
     if base_ch not in ['B', 'G', 'R']:
-        print("[ERROR]: Invalid base channel.")
+        logger.log_error("Invalid base channel.")
         exit(1)
 
     if base_ch == 'B':
@@ -350,66 +347,105 @@ def stack_bgr_channels(b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_ar
         r_ch_coord, b_ch_coord, g_ch_coord = bgr_channel_overlap(base_ch_arr=r_ch_arr, cmp_ch_0_arr=b_ch_arr, cmp_ch_1_arr=g_ch_arr, disp_0=disp_0, disp_1=disp_1)
 
     b_ch_arr = b_ch_arr[b_ch_coord[1]:b_ch_coord[3], b_ch_coord[0]:b_ch_coord[2]]
+    print(b_ch_arr.shape)
     g_ch_arr = g_ch_arr[g_ch_coord[1]:g_ch_coord[3], g_ch_coord[0]:g_ch_coord[2]]
+    print(g_ch_arr.shape)
     r_ch_arr = r_ch_arr[r_ch_coord[1]:r_ch_coord[3], r_ch_coord[0]:r_ch_coord[2]]
+    print(r_ch_arr.shape)
+
+    skimage.io.imshow(arr=b_ch_arr)
+    skimage.io.show()
+    skimage.io.imshow(arr=g_ch_arr)
+    skimage.io.show()
+    skimage.io.imshow(arr=r_ch_arr)
+    skimage.io.show()
 
     img_arr = numpy.dstack(tup=(r_ch_arr, g_ch_arr, b_ch_arr))
+    # skimage.io.imshow(arr=img_arr)
+    # skimage.io.show()
 
     return img_arr
 
 
-def single_scale_align():
-    logger.log_info("Start single-scale alignment")
-    logger.log_info("Metric = %s" % config.metric)
-    single_scale_alignment_image_names = os.listdir(path=config.single_scale_alignment_images_dir)
-
-    for filename in single_scale_alignment_image_names:
-        logger.log_info("Processing file %s" % filename)
-        filepath = os.path.join(config.single_scale_alignment_images_dir, filename)
+def single_scale_align(filepath: str) -> numpy.ndarray:
         image = PIL.Image.open(fp=filepath)
         img_arr = numpy.asarray(image)
-        img_arr = rm_border(img_arr=img_arr, border_width_thres=35, white_thres=245, black_thres=35)
-        b_ch_arr, g_ch_arr, r_ch_arr = split_image(img_arr=img_arr)
+        img_arr = rm_border(img_arr=img_arr, border_search_range=config.single_scale_alignment_border_search_range, white_thres=config.white_threshold, black_thres=config.black_threshold)
+        b_ch_arr, g_ch_arr, r_ch_arr = split_image(img_arr=img_arr, border_search_range=config.single_scale_alignment_border_search_range)
         disp_info = find_best_disp(metric=config.metric, b_ch_arr=b_ch_arr, g_ch_arr=g_ch_arr, r_ch_arr=r_ch_arr, disp_range=10)
         base_ch, disp_0, disp_1 = disp_info
         img_arr = stack_bgr_channels(b_ch_arr=b_ch_arr, g_ch_arr=g_ch_arr, r_ch_arr=r_ch_arr, base_ch=base_ch, disp_0=disp_0, disp_1=disp_1)
 
-        result_image_path = os.path.join(config.single_scale_alignment_results_dir, config.metric, filename)
-        image = PIL.Image.fromarray(obj=img_arr)
-        image.save(fp=result_image_path)
-
-        if config.imshow:
-            image.show()
+        return img_arr
 
 
 def blur_and_downsize(img_arr: numpy.ndarray) -> numpy.ndarray:
-    blur_downsize_img = skimage.transform.resize(image=img_arr, output_shape=(img_arr.shape[0]//2, img_arr.shape[1]//2), anti_aliasing=True, anti_aliasing_sigma=config.anti_aliasing_sigma)
-    return blur_downsize_img
+    blur_downsize_arr = cv2.resize(src=img_arr, dsize=(img_arr.shape[0]//2, img_arr.shape[1]//2), interpolation=cv2.INTER_CUBIC)
+    # blur_downsize_arr = skimage.transform.resize(image=img_arr, output_shape=(img_arr.shape[0]//2, img_arr.shape[1]//2), anti_aliasing=True, anti_aliasing_sigma=config.anti_aliasing_sigma)
+    return blur_downsize_arr
 
 
-def pyramid_find_best_disp(metric: str, b_ch_img: PIL.Image.Image, g_ch_img: PIL.Image.Image, r_ch_img: PIL.Image.Image, disp_range: int):
+def pyramid_find_disp(metric: str, base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
+    height, width = base_ch_arr.shape
 
+    if max(height, width) >= 300:
+        base_ch_arr = blur_and_downsize(img_arr=base_ch_arr)
+        cmp_ch_arr = blur_and_downsize(img_arr=cmp_ch_arr)
+        disp_0, best_score_0 = pyramid_find_disp(metric=metric, base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_arr, disp_range=disp_range)
+        disp_scaled = (disp_0[0]*2, disp_0[1]*2)
+        disp_1, best_score_1 = find_disp(metric=metric, base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_arr, disp_range=disp_range)
+        disp = (disp_scaled[0] + disp_1[0], disp_scaled[1] + disp_1[1])
+        best_score = best_score_0 + best_score_1
+        return disp, best_score
+    else:
+        return find_disp(metric=metric, base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_arr, disp_range=disp_range)
+
+
+def pyramid_find_best_disp(metric: str, b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_arr: numpy.ndarray, disp_range: int):
     if metric not in ["SSD", "SSD_EDGES", "NCC", "NCC_EDGES"]:
-        print("[ERROR]: Invalid metric for finding displacements.")
+        logger.log_error("Invalid metric for finding displacements.")
         exit(1)
 
+    # disp, best_score = pyramid_find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
+    # print(disp, best_score)
+
+    disp_map = {}
+    disp_g, score_g = pyramid_find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
+    disp_r, score_r = pyramid_find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=r_ch_arr, disp_range=disp_range)
+    disp_map[('B', disp_g, disp_r)] = score_g + score_r
+    # disp_b, score_b = pyramid_find_disp(metric=metric, base_ch_arr=g_ch_arr, cmp_ch_arr=b_ch_arr, disp_range=disp_range)
+    # disp_r, score_r = pyramid_find_disp(metric=metric, base_ch_arr=g_ch_arr, cmp_ch_arr=r_ch_arr, disp_range=disp_range)
+    # disp_map[('G', disp_b, disp_r)] = score_b + score_r
+    # disp_b, score_b = pyramid_find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=b_ch_arr, disp_range=disp_range)
+    # disp_g, score_g = pyramid_find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
+    # disp_map[('R', disp_b, disp_g)] = score_b + score_g
+
+    if metric == "SSD" or "SSD_EDGES":
+        disp_info = min(disp_map, key=lambda k: int(disp_map[k]))
+    elif metric == "NCC" or "NCC_EDGES":
+        disp_info = max(disp_map, key=lambda k: int(disp_map[k]))
+
+    return disp_info
 
 
-    return
+def multiscale_align(filepath: str):
+    img_arr = cv2.imread(filename=filepath, flags=cv2.IMREAD_GRAYSCALE)
+    img_arr = rm_border(img_arr=img_arr, border_search_range=config.multiscale_alignment_border_search_range, white_thres=config.white_threshold, black_thres=config.black_threshold)
+    b_ch_arr, g_ch_arr, r_ch_arr = split_image(img_arr=img_arr, border_search_range=config.multiscale_alignment_border_search_range)
+    disp_info = pyramid_find_best_disp(metric=config.metric, b_ch_arr=b_ch_arr, g_ch_arr=g_ch_arr, r_ch_arr=r_ch_arr, disp_range=15)
+    base_ch, disp_0, disp_1 = disp_info
+    print(base_ch, disp_0, disp_1)
+    img_arr = stack_bgr_channels(b_ch_arr=b_ch_arr, g_ch_arr=g_ch_arr, r_ch_arr=r_ch_arr, base_ch=base_ch, disp_0=disp_0, disp_1=disp_1)
 
-
-def multiscale_align(image):
-    img_arr = skimage.io.imread(fname=image)
-    img_arr = rm_border(img_arr=img_arr, border_width_thres=config.multiscale_alignment_border_width_threshold, white_thres=config.white_threshold, black_thres=config.black_threshold)
-    b_ch_img, g_ch_img, r_ch_img = split_image(img_arr=img_arr)
+    return img_arr
 
     skimage.io.imshow(arr=img_arr)
     skimage.io.show()
-    b_ch_img = blur_and_downsize(img_arr=b_ch_img)
-    skimage.io.imshow(arr=b_ch_img)
+    b_ch_arr = blur_and_downsize(img_arr=b_ch_arr)
+    skimage.io.imshow(arr=b_ch_arr)
     skimage.io.show()
-    skimage.io.imshow(arr=g_ch_img)
+    skimage.io.imshow(arr=g_ch_arr)
     skimage.io.show()
-    skimage.io.imshow(arr=r_ch_img)
+    skimage.io.imshow(arr=r_ch_arr)
     skimage.io.show()
     return
