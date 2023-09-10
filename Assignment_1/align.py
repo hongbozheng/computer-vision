@@ -135,7 +135,7 @@ def split_image(img_arr: numpy.ndarray, border_search_range: int) -> tuple[numpy
     g_ch_img = img_arr[sub_img_y_coord[0]:sub_img_y_coord[1], 0:width]
     r_ch_img = img_arr[sub_img_y_coord[1]:height, 0:width]
 
-    # remove the border for the B, G, R channels
+    # remove the border for the B, G, R channels (only for single-scale)
     if config.single_scale_align:
         b_ch_img = rm_border(img_arr=b_ch_img, border_search_range=5, white_thres=255, black_thres=15)
         g_ch_img = rm_border(img_arr=g_ch_img, border_search_range=5, white_thres=255, black_thres=15)
@@ -237,10 +237,10 @@ def find_best_disp(metric: str, b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray
     disp_g, loss_g = find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
     disp_map[('R', disp_b, disp_g)] = loss_b + loss_g
 
-    if metric == "SSD" or "SSD_EDGES":
-        disp_info = min(disp_map, key=lambda k: int(disp_map[k]))
-    elif metric == "NCC" or "NCC_EDGES":
-        disp_info = max(disp_map, key=lambda k: int(disp_map[k]))
+    if metric == "SSD" or metric == "SSD_EDGES":
+        disp_info = min(disp_map, key=lambda k: disp_map[k])
+    elif metric == "NCC" or metric == "NCC_EDGES":
+        disp_info = max(disp_map, key=lambda k: disp_map[k])
 
     return disp_info
 
@@ -380,18 +380,26 @@ def single_scale_align(filepath: str) -> numpy.ndarray:
 
 
 def blur_and_downsize(img_arr: numpy.ndarray) -> numpy.ndarray:
-    blur_downsize_arr = cv2.resize(src=img_arr, dsize=(img_arr.shape[0]//2, img_arr.shape[1]//2), interpolation=cv2.INTER_CUBIC)
-    # blur_downsize_arr = skimage.transform.resize(image=img_arr, output_shape=(img_arr.shape[0]//2, img_arr.shape[1]//2), anti_aliasing=True, anti_aliasing_sigma=config.anti_aliasing_sigma)
+    """
+    Perform gaussian blur and downsize the image by 2
+
+    :param img_arr: input image array
+    :return: image gaussian blurred and downsized by 2
+    """
+
+    blur_arr = cv2.GaussianBlur(src=img_arr, ksize=config.gaussian_blur_kernel_size, sigmaX=config.gaussian_blur_sigmaX, sigmaY=config.gaussian_blur_sigmaY)
+    blur_downsize_arr = cv2.resize(src=blur_arr, dsize=None, fx=1/2, fy=1/2, interpolation=cv2.INTER_AREA)
     return blur_downsize_arr
 
 
 def pyramid_find_disp(metric: str, base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
     height, width = base_ch_arr.shape
 
-    if max(height, width) >= 300:
+    if max(height, width) >= 200:
         base_ch_arr = blur_and_downsize(img_arr=base_ch_arr)
         cmp_ch_arr = blur_and_downsize(img_arr=cmp_ch_arr)
         disp_0, best_score_0 = pyramid_find_disp(metric=metric, base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_arr, disp_range=disp_range)
+        cmp_ch_arr = numpy.roll(a=cmp_ch_arr, shift=[disp_0[0], disp_0[1]], axis=[0, 1])
         disp_scaled = (disp_0[0]*2, disp_0[1]*2)
         disp_1, best_score_1 = find_disp(metric=metric, base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_arr, disp_range=disp_range)
         disp = (disp_scaled[0] + disp_1[0], disp_scaled[1] + disp_1[1])
@@ -421,9 +429,9 @@ def pyramid_find_best_disp(metric: str, b_ch_arr: numpy.ndarray, g_ch_arr: numpy
     # disp_map[('R', disp_b, disp_g)] = score_b + score_g
 
     if metric == "SSD" or "SSD_EDGES":
-        disp_info = min(disp_map, key=lambda k: int(disp_map[k]))
+        disp_info = min(disp_map, key=lambda k: disp_map[k])
     elif metric == "NCC" or "NCC_EDGES":
-        disp_info = max(disp_map, key=lambda k: int(disp_map[k]))
+        disp_info = max(disp_map, key=lambda k: disp_map[k])
 
     return disp_info
 

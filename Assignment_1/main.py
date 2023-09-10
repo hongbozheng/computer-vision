@@ -32,15 +32,16 @@ def main():
         logger.log_info("Metric = %s" % config.metric)
         multiscale_alignment_image_names = os.listdir(path=config.multiscale_alignment_images_dir)
 
-        for filename in multiscale_alignment_image_names:
-            logger.log_info("Processing file %s" % filename)
-            filepath = os.path.join(config.multiscale_alignment_images_dir, filename)
-            img_arr = align.multiscale_align(filepath=filepath)
-            result_img_path = os.path.join(config.multiscale_alignment_results_dir, config.metric, filename)
-            skimage.io.imsave(fname=result_img_path, arr=img_arr)
-            skimage.io.imshow(arr=img_arr)
-            skimage.io.show()
-            break
+        # for filename in multiscale_alignment_image_names:
+        filename = "01861a.tif"
+        logger.log_info("Processing file %s" % filename)
+        filepath = os.path.join(config.multiscale_alignment_images_dir, filename)
+        img_arr = align.multiscale_align(filepath=filepath)
+        result_img_path = os.path.join(config.multiscale_alignment_results_dir, config.metric, filename)
+        skimage.io.imsave(fname=result_img_path, arr=img_arr)
+        skimage.io.imshow(arr=img_arr)
+        skimage.io.show()
+            # break
 
     return
 
