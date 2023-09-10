@@ -22,6 +22,6 @@ gaussian_blur_sigmaX = 1
 gaussian_blur_sigmaY = 1
 
 # test
-single_scale_align = False
+img_pyr = True
 imshow = False
 log_level = logger.LogLevel.info
