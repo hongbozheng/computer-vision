@@ -20,6 +20,7 @@ displacement_range = 50
 gaussian_blur_kernel_size = (3, 3)
 gaussian_blur_sigmaX = 1
 gaussian_blur_sigmaY = 1
+num_pyramid_levels = 5
 
 # test
 img_pyr = True

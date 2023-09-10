@@ -2,10 +2,10 @@
 
 import align
 import config
+import cv2
 import logger
 import os
 import PIL.Image
-import skimage
 
 
 def main():
@@ -18,12 +18,13 @@ def main():
         for filename in multiscale_alignment_image_names:
             logger.log_info("Processing file %s" % filename)
             filepath = os.path.join(config.multiscale_alignment_images_dir, filename)
-            img_arr = align.align(filepath=filepath, img_pyr=config.img_pyr)
+            mat = align.align(filepath=filepath, img_pyr=config.img_pyr, num_pyr_levels=config.num_pyramid_levels)
             result_img_path = os.path.join(config.multiscale_alignment_results_dir, config.metric, filename)
-            skimage.io.imsave(fname=result_img_path, arr=img_arr)
-            skimage.io.imshow(arr=img_arr)
-            skimage.io.show()
-            break
+            cv2.imwrite(filename=result_img_path, img=mat)
+
+            if config.imshow:
+                cv2.imshow(winname="Multiscale Alignment", mat=mat)
+                cv2.waitKey(0)
 
     # Single-Scale Alignment
     else:
@@ -34,9 +35,10 @@ def main():
         for filename in single_scale_alignment_image_names:
             logger.log_info("Processing file %s" % filename)
             filepath = os.path.join(config.single_scale_alignment_images_dir, filename)
-            img_arr = align.align(filepath=filepath, img_pyr=config.img_pyr)
+            mat = align.align(filepath=filepath, img_pyr=config.img_pyr, num_pyr_levels=config.num_pyramid_levels)
+            mat = mat[:, :, ::-1]
             result_img_path = os.path.join(config.single_scale_alignment_results_dir, config.metric, filename)
-            image = PIL.Image.fromarray(obj=img_arr)
+            image = PIL.Image.fromarray(obj=mat)
             image.save(fp=result_img_path)
 
             if config.imshow:
