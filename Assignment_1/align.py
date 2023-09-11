@@ -163,13 +163,13 @@ def ncc(mat_0: numpy.ndarray, mat_1: numpy.ndarray) -> float:
     return ((mat_0/numpy.linalg.norm(mat_0)) * (mat_1/numpy.linalg.norm(mat_1))).ravel().sum()
 
 
-def find_disp(metric: str, base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
+def find_disp(metric: str, base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
     """
     Find the displacement of the compare channel image with respect to the base channel image
 
     :param metric: metric to compute the score between two images
-    :param base_ch_arr: base channel image array to compare
-    :param cmp_ch_arr: compare channel image array
+    :param base_ch_mat: base channel image matrix to compare
+    :param cmp_ch_mat: compare channel image matrix
     :param disp_range: displacement range to search
     :return: displacement and best score
     """
@@ -178,30 +178,30 @@ def find_disp(metric: str, base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray
     disp = (0, 0)
 
     if metric == "SSD_EDGES" or metric == "NCC_EDGES":
-        base_ch_edges = cv2.Canny(image=base_ch_arr, threshold1=100, threshold2=200)
+        base_ch_edges = cv2.Canny(image=base_ch_mat, threshold1=100, threshold2=200)
 
     # search for the best displacement in x-axis and y-axis
     for dy in range(-disp_range, disp_range+1):
         for dx in range(-disp_range, disp_range+1):
-            cmp_ch_arr_shifted = numpy.roll(a=cmp_ch_arr, shift=[dy, dx], axis=(0, 1))
+            cmp_ch_mat_shifted = numpy.roll(a=cmp_ch_mat, shift=[dy, dx], axis=(0, 1))
             if metric == "SSD":
-                score = numpy.linalg.norm((base_ch_arr - cmp_ch_arr_shifted))
+                score = numpy.linalg.norm((base_ch_mat - cmp_ch_mat_shifted))
                 if score <= best_score:
                     best_score = score
                     disp = (dy, dx)
             elif metric == "SSD_EDGES":
-                cmp_ch_edges = cv2.Canny(image=cmp_ch_arr_shifted, threshold1=100, threshold2=200)
+                cmp_ch_edges = cv2.Canny(image=cmp_ch_mat_shifted, threshold1=100, threshold2=200)
                 score = numpy.linalg.norm((base_ch_edges - cmp_ch_edges))
                 if score <= best_score:
                     best_score = score
                     disp = (dy, dx)
             elif metric == "NCC":
-                score = ncc(mat_0=base_ch_arr, mat_1=cmp_ch_arr_shifted)
+                score = ncc(mat_0=base_ch_mat, mat_1=cmp_ch_mat_shifted)
                 if score >= best_score:
                     best_score = score
                     disp = (dy, dx)
             elif metric == "NCC_EDGES":
-                cmp_ch_edges = cv2.Canny(image=cmp_ch_arr_shifted, threshold1=100, threshold2=200)
+                cmp_ch_edges = cv2.Canny(image=cmp_ch_mat_shifted, threshold1=100, threshold2=200)
                 score = ncc(mat_0=base_ch_edges, mat_1=cmp_ch_edges)
                 if score >= best_score:
                     best_score = score
@@ -210,14 +210,50 @@ def find_disp(metric: str, base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray
     return disp, best_score
 
 
-def find_best_disp(metric: str, b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_arr: numpy.ndarray, disp_range: int) -> tuple[str, tuple[int, int], tuple[int, int]]:
+def blur_and_downsize(mat: numpy.ndarray) -> numpy.ndarray:
+    """
+    Perform gaussian blur and downsize the image by 2
+
+    :param mat: input image array
+    :return: image gaussian blurred and downsized by 2
+    """
+
+    blur_arr = cv2.GaussianBlur(src=mat, ksize=config.gaussian_blur_kernel_size,
+                                sigmaX=config.gaussian_blur_sigmaX, sigmaY=config.gaussian_blur_sigmaY)
+    blur_downsize_arr = cv2.resize(src=blur_arr, dsize=None, fx=1/2, fy=1/2, interpolation=cv2.INTER_AREA)
+    return blur_downsize_arr
+
+
+def pyr_find_disp(num_pyr_levels: int, metric: str, base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
+    height, width = base_ch_mat.shape
+
+    if num_pyr_levels == 0:
+        return find_disp(metric=metric, base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_mat, disp_range=disp_range)
+    else:
+        base_ch_mat = blur_and_downsize(mat=base_ch_mat)
+        cmp_ch_mat = blur_and_downsize(mat=cmp_ch_mat)
+        disp_prev_level, best_score_prev_leve = pyr_find_disp(num_pyr_levels=num_pyr_levels-1, metric=metric,
+                                                              base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_mat,
+                                                              disp_range=disp_range)
+        cmp_ch_mat = numpy.roll(a=cmp_ch_mat, shift=[disp_prev_level[0], disp_prev_level[1]], axis=[0, 1])
+        disp = (disp_prev_level[0]*2, disp_prev_level[1]*2)
+        disp_curr_level, best_score_curr_level = find_disp(metric=metric, base_ch_mat=base_ch_mat,
+                                                           cmp_ch_mat=cmp_ch_mat, disp_range=disp_range)
+        disp = (disp[0] + disp_curr_level[0], disp[1] + disp_curr_level[1])
+        best_score = best_score_prev_leve + best_score_curr_level
+        return disp, best_score
+
+
+def find_best_disp(img_pyr: bool, num_pyr_levels: int, metric: str, b_ch_mat: numpy.ndarray, g_ch_mat: numpy.ndarray, r_ch_mat: numpy.ndarray, disp_range: int):
     """
     Find the best displacement by trying blue, green, red channel as base channel
 
+    :param img_pyr: whether to use image pyramid or not
+    :param num_pyr_levels: number of image pyramid levels
     :param metric: metric to compute the score between two images
-    :param b_ch_arr: blue channel image array
-    :param g_ch_arr: green channel image array
-    :param r_ch_arr: red channel image array
+    :param b_ch_mat: blue channel image array
+    :param g_ch_mat: green channel image array
+    :param r_ch_mat: red channel image array
     :param disp_range: displacement range to search
     :return: displacement information (base channel, displacement for first channel, displacement for second channel)
     """
@@ -227,36 +263,55 @@ def find_best_disp(metric: str, b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray
         exit(1)
 
     disp_map = {}
-    disp_g, loss_g = find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
-    disp_r, loss_r = find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=r_ch_arr, disp_range=disp_range)
-    disp_map[('B', disp_g, disp_r)] = loss_g + loss_r
-    disp_b, loss_b = find_disp(metric=metric, base_ch_arr=g_ch_arr, cmp_ch_arr=b_ch_arr, disp_range=disp_range)
-    disp_r, loss_r = find_disp(metric=metric, base_ch_arr=g_ch_arr, cmp_ch_arr=r_ch_arr, disp_range=disp_range)
-    disp_map[('G', disp_b, disp_r)] = loss_b + loss_r
-    disp_b, loss_b = find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=b_ch_arr, disp_range=disp_range)
-    disp_g, loss_g = find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
-    disp_map[('R', disp_b, disp_g)] = loss_b + loss_g
+
+    if img_pyr:
+        disp_g, score_g = pyr_find_disp(num_pyr_levels=num_pyr_levels, metric=metric,
+                                        base_ch_mat=b_ch_mat, cmp_ch_mat=g_ch_mat, disp_range=disp_range)
+        disp_r, score_r = pyr_find_disp(num_pyr_levels=num_pyr_levels, metric=metric,
+                                        base_ch_mat=b_ch_mat, cmp_ch_mat=r_ch_mat, disp_range=disp_range)
+        disp_map[('B', disp_g, disp_r)] = score_g + score_r
+        disp_b, score_b = pyr_find_disp(num_pyr_levels=num_pyr_levels, metric=metric,
+                                        base_ch_mat=g_ch_mat, cmp_ch_mat=b_ch_mat, disp_range=disp_range)
+        disp_r, score_r = pyr_find_disp(num_pyr_levels=num_pyr_levels, metric=metric,
+                                        base_ch_mat=g_ch_mat, cmp_ch_mat=r_ch_mat, disp_range=disp_range)
+        disp_map[('G', disp_b, disp_r)] = score_b + score_r
+        disp_b, score_b = pyr_find_disp(num_pyr_levels=num_pyr_levels, metric=metric,
+                                        base_ch_mat=r_ch_mat, cmp_ch_mat=b_ch_mat, disp_range=disp_range)
+        disp_g, score_g = pyr_find_disp(num_pyr_levels=num_pyr_levels, metric=metric,
+                                        base_ch_mat=r_ch_mat, cmp_ch_mat=g_ch_mat, disp_range=disp_range)
+        disp_map[('R', disp_b, disp_g)] = score_b + score_g
+    else:
+        disp_g, loss_g = find_disp(metric=metric, base_ch_mat=b_ch_mat, cmp_ch_mat=g_ch_mat, disp_range=disp_range)
+        disp_r, loss_r = find_disp(metric=metric, base_ch_mat=b_ch_mat, cmp_ch_mat=r_ch_mat, disp_range=disp_range)
+        disp_map[('B', disp_g, disp_r)] = loss_g + loss_r
+        disp_b, loss_b = find_disp(metric=metric, base_ch_mat=g_ch_mat, cmp_ch_mat=b_ch_mat, disp_range=disp_range)
+        disp_r, loss_r = find_disp(metric=metric, base_ch_mat=g_ch_mat, cmp_ch_mat=r_ch_mat, disp_range=disp_range)
+        disp_map[('G', disp_b, disp_r)] = loss_b + loss_r
+        disp_b, loss_b = find_disp(metric=metric, base_ch_mat=r_ch_mat, cmp_ch_mat=b_ch_mat, disp_range=disp_range)
+        disp_g, loss_g = find_disp(metric=metric, base_ch_mat=r_ch_mat, cmp_ch_mat=g_ch_mat, disp_range=disp_range)
+        disp_map[('R', disp_b, disp_g)] = loss_b + loss_g
 
     if metric == "SSD" or metric == "SSD_EDGES":
         disp_info = min(disp_map, key=lambda k: disp_map[k])
     elif metric == "NCC" or metric == "NCC_EDGES":
         disp_info = max(disp_map, key=lambda k: disp_map[k])
+    print(disp_map)
 
     return disp_info
 
 
-def channel_overlap(base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray, disp: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
+def channel_overlap(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray, disp: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
     Find the overlap area between the base channel image and the compare channel image under displacement
 
-    :param base_ch_arr: base channel image array
-    :param cmp_ch_arr: compare channel image array
+    :param base_ch_mat: base channel image array
+    :param cmp_ch_mat: compare channel image array
     :param disp: displacement of compare channel image
     :return: base channel coordinate and compare channel coordinate
     """
 
-    base_ch_h, base_ch_w = base_ch_arr.shape
-    cmp_ch_h, cmp_ch_w = cmp_ch_arr.shape
+    base_ch_h, base_ch_w = base_ch_mat.shape
+    cmp_ch_h, cmp_ch_w = cmp_ch_mat.shape
     dy, dx = disp
     base_ch_x0 = max(0, dx)
     base_ch_y0 = max(0, dy)
@@ -273,20 +328,20 @@ def channel_overlap(base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray, disp:
     return base_ch_coord, cmp_ch_coord
 
 
-def bgr_channel_overlap(base_ch_arr: numpy.ndarray, cmp_ch_0_arr: numpy.ndarray, cmp_ch_1_arr: numpy.ndarray, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
+def bgr_channel_overlap(base_ch_mat: numpy.ndarray, cmp_ch_0_mat: numpy.ndarray, cmp_ch_1_mat: numpy.ndarray, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
     Find the overlap area between base channel image and two compare channel images
 
-    :param base_ch_arr: base channel image
-    :param cmp_ch_0_arr: compare channel 0 image array
-    :param cmp_ch_1_arr: compare channel 1 image array
+    :param base_ch_mat: base channel image
+    :param cmp_ch_0_mat: compare channel 0 image array
+    :param cmp_ch_1_mat: compare channel 1 image array
     :param disp_0: displacement of compare channel 0 image
     :param disp_1: displacement of compare channel 1 image
     :return: base channel coordinate, compare channel 0 coordinate, compare channel 1 coordinate
     """
 
-    base_ch_coord_0, cmp_ch_0_coord = channel_overlap(base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_0_arr, disp=disp_0)
-    base_ch_coord_1, cmp_ch_1_coord = channel_overlap(base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_1_arr, disp=disp_1)
+    base_ch_coord_0, cmp_ch_0_coord = channel_overlap(base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_0_mat, disp=disp_0)
+    base_ch_coord_1, cmp_ch_1_coord = channel_overlap(base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_1_mat, disp=disp_1)
 
     # find base channel coordinate (the overlap region between two base channels)
     base_ch_x0 = max(base_ch_coord_0[0], base_ch_coord_1[0])
@@ -322,13 +377,13 @@ def bgr_channel_overlap(base_ch_arr: numpy.ndarray, cmp_ch_0_arr: numpy.ndarray,
     return base_ch_coord, cmp_ch_0_coord, cmp_ch_1_coord
 
 
-def stack_bgr_channels(b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_arr: numpy.ndarray, base_ch: str, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> numpy.ndarray:
+def stack_bgr_channels(b_ch_mat: numpy.ndarray, g_ch_mat: numpy.ndarray, r_ch_mat: numpy.ndarray, base_ch: str, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> numpy.ndarray:
     """
     Stack B, G, R, channel to form the final RGB image
 
-    :param b_ch_arr: blue channel image array
-    :param g_ch_arr: green channel image array
-    :param r_ch_arr: red channel image array
+    :param b_ch_mat: blue channel image array
+    :param g_ch_mat: green channel image array
+    :param r_ch_mat: red channel image array
     :param base_ch: which color channel is used as base channel
     :param disp_0: displacement for compare channel 0 image
     :param disp_1: displacement for compare channel 1 image
@@ -340,114 +395,52 @@ def stack_bgr_channels(b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_ar
         exit(1)
 
     if base_ch == 'B':
-        b_ch_coord, g_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_arr=b_ch_arr, cmp_ch_0_arr=g_ch_arr, cmp_ch_1_arr=r_ch_arr, disp_0=disp_0, disp_1=disp_1)
+        b_ch_coord, g_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_mat=b_ch_mat,
+                                                                 cmp_ch_0_mat=g_ch_mat, cmp_ch_1_mat=r_ch_mat,
+                                                                 disp_0=disp_0, disp_1=disp_1)
     elif base_ch == 'G':
-        g_ch_coord, b_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_arr=g_ch_arr, cmp_ch_0_arr=b_ch_arr, cmp_ch_1_arr=r_ch_arr, disp_0=disp_0, disp_1=disp_1)
+        g_ch_coord, b_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_mat=g_ch_mat,
+                                                                 cmp_ch_0_mat=b_ch_mat, cmp_ch_1_mat=r_ch_mat,
+                                                                 disp_0=disp_0, disp_1=disp_1)
     elif base_ch == 'R':
-        r_ch_coord, b_ch_coord, g_ch_coord = bgr_channel_overlap(base_ch_arr=r_ch_arr, cmp_ch_0_arr=b_ch_arr, cmp_ch_1_arr=g_ch_arr, disp_0=disp_0, disp_1=disp_1)
+        r_ch_coord, b_ch_coord, g_ch_coord = bgr_channel_overlap(base_ch_mat=r_ch_mat,
+                                                                 cmp_ch_0_mat=b_ch_mat, cmp_ch_1_mat=g_ch_mat,
+                                                                 disp_0=disp_0, disp_1=disp_1)
 
-    b_ch_arr = b_ch_arr[b_ch_coord[1]:b_ch_coord[3], b_ch_coord[0]:b_ch_coord[2]]
-    print(b_ch_arr.shape)
-    g_ch_arr = g_ch_arr[g_ch_coord[1]:g_ch_coord[3], g_ch_coord[0]:g_ch_coord[2]]
-    print(g_ch_arr.shape)
-    r_ch_arr = r_ch_arr[r_ch_coord[1]:r_ch_coord[3], r_ch_coord[0]:r_ch_coord[2]]
-    print(r_ch_arr.shape)
+    b_ch_mat = b_ch_mat[b_ch_coord[1]:b_ch_coord[3], b_ch_coord[0]:b_ch_coord[2]]
+    g_ch_mat = g_ch_mat[g_ch_coord[1]:g_ch_coord[3], g_ch_coord[0]:g_ch_coord[2]]
+    r_ch_mat = r_ch_mat[r_ch_coord[1]:r_ch_coord[3], r_ch_coord[0]:r_ch_coord[2]]
 
-    # skimage.io.imshow(arr=b_ch_arr)
-    # skimage.io.show()
-    # skimage.io.imshow(arr=g_ch_arr)
-    # skimage.io.show()
-    # skimage.io.imshow(arr=r_ch_arr)
-    # skimage.io.show()
-
-    img_arr = numpy.dstack(tup=(r_ch_arr, g_ch_arr, b_ch_arr))
-    # skimage.io.imshow(arr=img_arr)
-    # skimage.io.show()
+    img_arr = numpy.dstack(tup=(b_ch_mat, g_ch_mat, r_ch_mat))
 
     return img_arr
 
 
-def blur_and_downsize(img_arr: numpy.ndarray) -> numpy.ndarray:
-    """
-    Perform gaussian blur and downsize the image by 2
-
-    :param img_arr: input image array
-    :return: image gaussian blurred and downsized by 2
-    """
-
-    blur_arr = cv2.GaussianBlur(src=img_arr, ksize=config.gaussian_blur_kernel_size, sigmaX=config.gaussian_blur_sigmaX, sigmaY=config.gaussian_blur_sigmaY)
-    blur_downsize_arr = cv2.resize(src=blur_arr, dsize=None, fx=1/2, fy=1/2, interpolation=cv2.INTER_AREA)
-    return blur_downsize_arr
-
-
-def pyramid_find_disp(metric: str, base_ch_arr: numpy.ndarray, cmp_ch_arr: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
-    height, width = base_ch_arr.shape
-
-    if max(height, width) >= 200:
-        base_ch_arr = blur_and_downsize(img_arr=base_ch_arr)
-        cmp_ch_arr = blur_and_downsize(img_arr=cmp_ch_arr)
-        disp_0, best_score_0 = pyramid_find_disp(metric=metric, base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_arr, disp_range=disp_range)
-        cmp_ch_arr = numpy.roll(a=cmp_ch_arr, shift=[disp_0[0], disp_0[1]], axis=[0, 1])
-        disp_scaled = (disp_0[0]*2, disp_0[1]*2)
-        disp_1, best_score_1 = find_disp(metric=metric, base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_arr, disp_range=disp_range)
-        disp = (disp_scaled[0] + disp_1[0], disp_scaled[1] + disp_1[1])
-        best_score = best_score_0 + best_score_1
-        return disp, best_score
-    else:
-        return find_disp(metric=metric, base_ch_arr=base_ch_arr, cmp_ch_arr=cmp_ch_arr, disp_range=disp_range)
-
-
-def pyramid_find_best_disp(metric: str, b_ch_arr: numpy.ndarray, g_ch_arr: numpy.ndarray, r_ch_arr: numpy.ndarray, disp_range: int):
-    if metric not in ["SSD", "SSD_EDGES", "NCC", "NCC_EDGES"]:
-        logger.log_error("Invalid metric for finding displacements.")
-        exit(1)
-
-    # disp, best_score = pyramid_find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
-    # print(disp, best_score)
-
-    disp_map = {}
-    disp_g, score_g = pyramid_find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
-    disp_r, score_r = pyramid_find_disp(metric=metric, base_ch_arr=b_ch_arr, cmp_ch_arr=r_ch_arr, disp_range=disp_range)
-    disp_map[('B', disp_g, disp_r)] = score_g + score_r
-    # disp_b, score_b = pyramid_find_disp(metric=metric, base_ch_arr=g_ch_arr, cmp_ch_arr=b_ch_arr, disp_range=disp_range)
-    # disp_r, score_r = pyramid_find_disp(metric=metric, base_ch_arr=g_ch_arr, cmp_ch_arr=r_ch_arr, disp_range=disp_range)
-    # disp_map[('G', disp_b, disp_r)] = score_b + score_r
-    # disp_b, score_b = pyramid_find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=b_ch_arr, disp_range=disp_range)
-    # disp_g, score_g = pyramid_find_disp(metric=metric, base_ch_arr=r_ch_arr, cmp_ch_arr=g_ch_arr, disp_range=disp_range)
-    # disp_map[('R', disp_b, disp_g)] = score_b + score_g
-
-    if metric == "SSD" or "SSD_EDGES":
-        disp_info = min(disp_map, key=lambda k: disp_map[k])
-    elif metric == "NCC" or "NCC_EDGES":
-        disp_info = max(disp_map, key=lambda k: disp_map[k])
-
-    return disp_info
-
-
-def align(filepath: str, img_pyr: bool) -> numpy.ndarray:
+def align(filepath: str, img_pyr: bool, num_pyr_levels: int) -> numpy.ndarray:
     if img_pyr:
         mat = cv2.imread(filename=filepath, flags=cv2.IMREAD_GRAYSCALE)
         mat = rm_border(mat=mat, border_search_range=config.multiscale_alignment_border_search_range,
                         white_thres=config.white_threshold, black_thres=config.black_threshold)
         b_ch_mat, g_ch_mat, r_ch_mat = split_image(mat=mat,
                                                    border_search_range=config.multiscale_alignment_border_search_range)
-        disp_info = pyramid_find_best_disp(metric=config.metric, b_ch_arr=b_ch_mat, g_ch_arr=g_ch_mat,
-                                           r_ch_arr=r_ch_mat, disp_range=15)
+        disp_info = find_best_disp(img_pyr=config.img_pyr, num_pyr_levels=num_pyr_levels, metric=config.metric,
+                                   b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat, disp_range=15)
         base_ch, disp_0, disp_1 = disp_info
         print(base_ch, disp_0, disp_1)
-        mat = stack_bgr_channels(b_ch_arr=b_ch_mat, g_ch_arr=g_ch_mat, r_ch_arr=r_ch_mat,
+        mat = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                  base_ch=base_ch, disp_0=disp_0, disp_1=disp_1)
     else:
         image = PIL.Image.open(fp=filepath)
         mat = numpy.asarray(image)
         mat = rm_border(mat=mat, border_search_range=config.single_scale_alignment_border_search_range,
                         white_thres=config.white_threshold, black_thres=config.black_threshold)
-        b_ch_arr, g_ch_arr, r_ch_arr = split_image(mat=mat,
+        b_ch_mat, g_ch_mat, r_ch_mat = split_image(mat=mat,
                                                    border_search_range=config.single_scale_alignment_border_search_range)
-        disp_info = find_best_disp(metric=config.metric, b_ch_arr=b_ch_arr, g_ch_arr=g_ch_arr, r_ch_arr=r_ch_arr,
-                                   disp_range=10)
+        disp_info = find_best_disp(num_pyr_levels=num_pyr_levels, img_pyr=config.img_pyr, metric=config.metric,
+                                   b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat, disp_range=10)
         base_ch, disp_0, disp_1 = disp_info
-        mat = stack_bgr_channels(b_ch_arr=b_ch_arr, g_ch_arr=g_ch_arr, r_ch_arr=r_ch_arr,
+        print(base_ch, disp_0, disp_1)
+        mat = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                  base_ch=base_ch, disp_0=disp_0, disp_1=disp_1)
 
     return mat

@@ -13,8 +13,8 @@ white_threshold = 245
 black_threshold = 35
 
 # find displacement
-metric = "NCC"
-displacement_range = 50
+metric = "SSD"
+displacement_range = 15
 
 # pyramid find displacement
 gaussian_blur_kernel_size = (3, 3)
@@ -23,6 +23,6 @@ gaussian_blur_sigmaY = 1
 num_pyramid_levels = 5
 
 # test
-img_pyr = True
+img_pyr = False
 imshow = False
 log_level = logger.LogLevel.info
