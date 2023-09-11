@@ -5,7 +5,6 @@ import cv2
 import logger
 import numpy
 import PIL.Image
-import skimage
 
 IMAGE_BOXES = [[(27, 25, 383, 340),     # 357 x 315 (24, 25, 385, 343) 361 x 318
                 (25, 361, 381, 676),    #           (24, 351, 385, 686) 361 x 335
@@ -163,7 +162,10 @@ def ncc(mat_0: numpy.ndarray, mat_1: numpy.ndarray) -> float:
     return ((mat_0/numpy.linalg.norm(mat_0)) * (mat_1/numpy.linalg.norm(mat_1))).ravel().sum()
 
 
-def find_disp(metric: str, base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
+def find_disp(metric: str,
+              base_ch_mat: numpy.ndarray,
+              cmp_ch_mat: numpy.ndarray,
+              disp_range: int) -> tuple[tuple[int, int], float]:
     """
     Find the displacement of the compare channel image with respect to the base channel image
 
@@ -224,36 +226,55 @@ def blur_and_downsize(mat: numpy.ndarray) -> numpy.ndarray:
     return blur_downsize_arr
 
 
-def pyr_find_disp(num_pyr_levels: int, metric: str, base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray, disp_range: int) -> tuple[tuple[int, int], float]:
-    height, width = base_ch_mat.shape
+def pyr_find_disp(num_pyr_levels: int,
+                  metric: str,
+                  base_ch_mat: numpy.ndarray,
+                  cmp_ch_mat: numpy.ndarray,
+                  disp_range: int) -> tuple[tuple[int, int], float]:
+    """
+    Image pyramid find displacement (Recursion)
+
+    :param num_pyr_levels: number of pyramid levels
+    :param metric: metric to compute the score between two image channels
+    :param base_ch_mat: base channel image matrix
+    :param cmp_ch_mat: compare channel image matrix
+    :param disp_range: range of displacement to search for
+    :return: base channel, displacement
+    """
 
     if num_pyr_levels == 0:
         return find_disp(metric=metric, base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_mat, disp_range=disp_range)
     else:
         base_ch_mat = blur_and_downsize(mat=base_ch_mat)
         cmp_ch_mat = blur_and_downsize(mat=cmp_ch_mat)
-        disp_prev_level, best_score_prev_leve = pyr_find_disp(num_pyr_levels=num_pyr_levels-1, metric=metric,
-                                                              base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_mat,
-                                                              disp_range=disp_range)
+        disp_prev_level, best_score_prev_level = pyr_find_disp(num_pyr_levels=num_pyr_levels-1, metric=metric,
+                                                               base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_mat,
+                                                               disp_range=disp_range)
         cmp_ch_mat = numpy.roll(a=cmp_ch_mat, shift=[disp_prev_level[0], disp_prev_level[1]], axis=[0, 1])
         disp = (disp_prev_level[0]*2, disp_prev_level[1]*2)
         disp_curr_level, best_score_curr_level = find_disp(metric=metric, base_ch_mat=base_ch_mat,
                                                            cmp_ch_mat=cmp_ch_mat, disp_range=disp_range)
         disp = (disp[0] + disp_curr_level[0], disp[1] + disp_curr_level[1])
-        best_score = best_score_prev_leve + best_score_curr_level
+        best_score = best_score_prev_level + best_score_curr_level
         return disp, best_score
 
 
-def find_best_disp(img_pyr: bool, num_pyr_levels: int, metric: str, b_ch_mat: numpy.ndarray, g_ch_mat: numpy.ndarray, r_ch_mat: numpy.ndarray, disp_range: int):
+def find_best_disp(img_pyr: bool,
+                   num_pyr_levels: int,
+                   metric: str,
+                   b_ch_mat: numpy.ndarray,
+                   g_ch_mat: numpy.ndarray,
+                   r_ch_mat: numpy.ndarray,
+                   disp_range: int) -> tuple[str, tuple[int, int], tuple[int, int]]:
     """
     Find the best displacement by trying blue, green, red channel as base channel
 
     :param img_pyr: whether to use image pyramid or not
     :param num_pyr_levels: number of image pyramid levels
-    :param metric: metric to compute the score between two images
-    :param b_ch_mat: blue channel image array
-    :param g_ch_mat: green channel image array
-    :param r_ch_mat: red channel image array
+    :param metric: metric to compute the score between two image channels
+    :param b_ch_mat: blue channel image matrix
+    :param g_ch_mat: green channel image matrix
+    :param r_ch_mat: red channel image matrix
     :param disp_range: displacement range to search
     :return: displacement information (base channel, displacement for first channel, displacement for second channel)
     """
@@ -300,12 +321,14 @@ def find_best_disp(img_pyr: bool, num_pyr_levels: int, metric: str, b_ch_mat: nu
     return disp_info
 
 
-def channel_overlap(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray, disp: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
+def channel_overlap(base_ch_mat: numpy.ndarray,
+                    cmp_ch_mat: numpy.ndarray,
+                    disp: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
     Find the overlap area between the base channel image and the compare channel image under displacement
 
-    :param base_ch_mat: base channel image array
-    :param cmp_ch_mat: compare channel image array
+    :param base_ch_mat: base channel image matrix
+    :param cmp_ch_mat: compare channel image matrix
     :param disp: displacement of compare channel image
     :return: base channel coordinate and compare channel coordinate
     """
@@ -333,10 +356,10 @@ def bgr_channel_overlap(base_ch_mat: numpy.ndarray, cmp_ch_0_mat: numpy.ndarray,
     Find the overlap area between base channel image and two compare channel images
 
     :param base_ch_mat: base channel image
-    :param cmp_ch_0_mat: compare channel 0 image array
-    :param cmp_ch_1_mat: compare channel 1 image array
-    :param disp_0: displacement of compare channel 0 image
-    :param disp_1: displacement of compare channel 1 image
+    :param cmp_ch_0_mat: compare channel 0 image matrix
+    :param cmp_ch_1_mat: compare channel 1 image matrix
+    :param disp_0: displacement of compare channel 0 image matrix
+    :param disp_1: displacement of compare channel 1 image matrix
     :return: base channel coordinate, compare channel 0 coordinate, compare channel 1 coordinate
     """
 
@@ -381,13 +404,13 @@ def stack_bgr_channels(b_ch_mat: numpy.ndarray, g_ch_mat: numpy.ndarray, r_ch_ma
     """
     Stack B, G, R, channel to form the final RGB image
 
-    :param b_ch_mat: blue channel image array
-    :param g_ch_mat: green channel image array
-    :param r_ch_mat: red channel image array
+    :param b_ch_mat: blue channel image matrix
+    :param g_ch_mat: green channel image matrix
+    :param r_ch_mat: red channel image matrix
     :param base_ch: which color channel is used as base channel
-    :param disp_0: displacement for compare channel 0 image
-    :param disp_1: displacement for compare channel 1 image
-    :return: final RGB image
+    :param disp_0: displacement for compare channel 0 image matrix
+    :param disp_1: displacement for compare channel 1 image matrix
+    :return: final RGB image matrix
     """
 
     if base_ch not in ['B', 'G', 'R']:
@@ -417,6 +440,15 @@ def stack_bgr_channels(b_ch_mat: numpy.ndarray, g_ch_mat: numpy.ndarray, r_ch_ma
 
 
 def align(filepath: str, img_pyr: bool, num_pyr_levels: int) -> numpy.ndarray:
+    """
+    Perform multiscale alignment (image pyramid) or single-scale alignment
+
+    :param filepath: filepath of the image
+    :param img_pyr: whether to perform image pyramid or not
+    :param num_pyr_levels: number of image pyramid levels (only used if img_pyr = True)
+    :return: aligned image matrix
+    """
+
     if img_pyr:
         mat = cv2.imread(filename=filepath, flags=cv2.IMREAD_GRAYSCALE)
         mat = rm_border(mat=mat, border_search_range=config.multiscale_alignment_border_search_range,
