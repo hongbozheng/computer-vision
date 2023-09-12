@@ -1,5 +1,6 @@
 .DS_Store
 .idea
 __pycache__/
+*.zip
 Assignment_1/data
 Assignment_1/data_hires
