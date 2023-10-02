@@ -316,7 +316,6 @@ def find_best_disp(img_pyr: bool,
         disp_info = min(disp_map, key=lambda k: disp_map[k])
     elif metric == "NCC" or metric == "NCC_EDGES":
         disp_info = max(disp_map, key=lambda k: disp_map[k])
-    print(disp_map)
 
     return disp_info
 
@@ -458,7 +457,6 @@ def align(filepath: str, img_pyr: bool, num_pyr_levels: int) -> numpy.ndarray:
         disp_info = find_best_disp(img_pyr=config.img_pyr, num_pyr_levels=num_pyr_levels, metric=config.metric,
                                    b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat, disp_range=15)
         base_ch, disp_0, disp_1 = disp_info
-        print(base_ch, disp_0, disp_1)
         mat = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                  base_ch=base_ch, disp_0=disp_0, disp_1=disp_1)
     else:
@@ -471,7 +469,6 @@ def align(filepath: str, img_pyr: bool, num_pyr_levels: int) -> numpy.ndarray:
         disp_info = find_best_disp(num_pyr_levels=num_pyr_levels, img_pyr=config.img_pyr, metric=config.metric,
                                    b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat, disp_range=10)
         base_ch, disp_0, disp_1 = disp_info
-        print(base_ch, disp_0, disp_1)
         mat = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                  base_ch=base_ch, disp_0=disp_0, disp_1=disp_1)
 
