@@ -2,3 +2,5 @@
 .idea
 __pycache__/
 *.zip
+Assignment_2/data/
+Assignment_2/data_hires/
