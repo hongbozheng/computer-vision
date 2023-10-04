@@ -20,7 +20,7 @@ def main():
             mat = align.align(filepath=filepath, high_res=config.high_res)
             for (i, m) in enumerate(mat):
                 file_name, file_ext = os.path.splitext(p=filename)
-                new_filename = file_name + '_' + str(i) + file_ext
+                new_filename = file_name + '_' + config.base_ch_order[i] + file_ext
                 result_img_path = os.path.join(config.ft_align_results_dir, new_filename)
                 cv2.imwrite(filename=result_img_path, img=m)
                 if config.imshow:
@@ -39,7 +39,7 @@ def main():
             for (i, m) in enumerate(mat):
                 m = m[:, :, ::-1]
                 file_name, file_ext = os.path.splitext(p=filename)
-                new_filename = file_name + '_' + str(i) + file_ext
+                new_filename = file_name + '_' + config.base_ch_order[i] + file_ext
                 result_img_path = os.path.join(config.ft_align_results_dir, new_filename)
                 image = PIL.Image.fromarray(obj=m)
                 image.save(fp=result_img_path)

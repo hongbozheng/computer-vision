@@ -23,6 +23,7 @@ gaussian_blur_sigmaY = 1
 laplacian_kernel_size = 3
 
 # test
-high_res = True
+base_ch_order = ['B', 'G', 'R']
+high_res = False
 imshow = False
 log_level = logger.LogLevel.info
