@@ -9,40 +9,42 @@ import PIL.Image
 
 
 def main():
-    # Multiscale Alignment
-    if config.img_pyr:
+    # High Resolution Image Alignment
+    if config.high_res:
         logger.log_info("Start multiscale alignment")
-        logger.log_info("Metric = %s" % config.metric)
-        multiscale_alignment_image_names = os.listdir(path=config.multiscale_alignment_images_dir)
+        high_res_alignment_image_names = os.listdir(path=config.high_res_images_dir)
 
-        for filename in multiscale_alignment_image_names:
+        for filename in high_res_alignment_image_names:
             logger.log_info("Processing file %s" % filename)
-            filepath = os.path.join(config.multiscale_alignment_images_dir, filename)
-            mat = align.align(filepath=filepath, img_pyr=config.img_pyr, num_pyr_levels=config.num_pyramid_levels)
-            result_img_path = os.path.join(config.multiscale_alignment_results_dir, config.metric, filename)
-            cv2.imwrite(filename=result_img_path, img=mat)
+            filepath = os.path.join(config.high_res_images_dir, filename)
+            mat = align.align(filepath=filepath, high_res=config.high_res)
+            for (i, m) in enumerate(mat):
+                file_name, file_ext = os.path.splitext(p=filename)
+                new_filename = file_name + '_' + str(i) + file_ext
+                result_img_path = os.path.join(config.ft_align_results_dir, new_filename)
+                cv2.imwrite(filename=result_img_path, img=m)
+                if config.imshow:
+                    cv2.imshow(winname="High-Res Image Alignment", mat=mat)
+                    cv2.waitKey(0)
 
-            if config.imshow:
-                cv2.imshow(winname="Multiscale Alignment", mat=mat)
-                cv2.waitKey(0)
-
-    # Single-Scale Alignment
+    # Low Resolution Image Alignment
     else:
         logger.log_info("Start single-scale alignment")
-        logger.log_info("Metric = %s" % config.metric)
-        single_scale_alignment_image_names = os.listdir(path=config.single_scale_alignment_images_dir)
+        low_res_alignment_image_names = os.listdir(path=config.low_res_images_dir)
 
-        for filename in single_scale_alignment_image_names:
+        for filename in low_res_alignment_image_names:
             logger.log_info("Processing file %s" % filename)
-            filepath = os.path.join(config.single_scale_alignment_images_dir, filename)
-            mat = align.align(filepath=filepath, img_pyr=config.img_pyr, num_pyr_levels=config.num_pyramid_levels)
-            mat = mat[:, :, ::-1]
-            result_img_path = os.path.join(config.single_scale_alignment_results_dir, config.metric, filename)
-            image = PIL.Image.fromarray(obj=mat)
-            image.save(fp=result_img_path)
-
-            if config.imshow:
-                image.show(title="Single-Scale Alignment")
+            filepath = os.path.join(config.low_res_images_dir, filename)
+            mat = align.align(filepath=filepath, high_res=config.high_res)
+            for (i, m) in enumerate(mat):
+                m = m[:, :, ::-1]
+                file_name, file_ext = os.path.splitext(p=filename)
+                new_filename = file_name + '_' + str(i) + file_ext
+                result_img_path = os.path.join(config.ft_align_results_dir, new_filename)
+                image = PIL.Image.fromarray(obj=m)
+                image.save(fp=result_img_path)
+                if config.imshow:
+                    image.show(title="Low-Red Image Alignment")
 
     return
 
