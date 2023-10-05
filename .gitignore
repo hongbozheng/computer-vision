@@ -2,5 +2,5 @@
 .idea
 __pycache__/
 *.zip
-fourier-based_alignment_and_finding_covariant_neighborhoods/fourier-based_color_channel_alignment/data
-fourier-based_alignment_and_finding_covariant_neighborhoods/fourier-based_color_channel_alignment/data_hires
+color_channel_alignment_blob_construction/fourier-based_color_channel_alignment/data
+color_channel_alignment_blob_construction/fourier-based_color_channel_alignment/data_hires
