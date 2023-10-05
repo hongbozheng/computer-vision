@@ -137,9 +137,9 @@ def split_image(mat: numpy.ndarray, border_search_range: int) -> tuple[numpy.nda
     return b_ch_mat, g_ch_mat, r_ch_mat
 
 
-def preprocess_image(mat: numpy.ndarray) -> numpy.ndarray:
+def log_filter(mat: numpy.ndarray) -> numpy.ndarray:
     """
-    Preprocess image with gaussian blur and laplacian to highlight edges
+    Preprocess image with laplacian of gaussian filter to highlight edges
 
     :param mat: image matrix
     :return: image matrix with edges highlighted
@@ -161,9 +161,9 @@ def find_disp(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray) -> tuple[in
     """
 
     if config.LoG_filter:
-        base_ch_mat = preprocess_image(mat=base_ch_mat)
+        base_ch_mat = log_filter(mat=base_ch_mat)
         # base_ch_mat = cv2.filter2D(src=base_ch_mat, ddepth=-1, kernel=LoG_Filter)
-        cmp_ch_mat = preprocess_image(mat=cmp_ch_mat)
+        cmp_ch_mat = log_filter(mat=cmp_ch_mat)
         # cmp_ch_mat = cv2.filter2D(src=cmp_ch_mat, ddepth=-1, kernel=LoG_Filter)
     base_ch_ft = numpy.fft.fft2(a=base_ch_mat)
     cmp_ch_ft = numpy.fft.fft2(a=cmp_ch_mat)
