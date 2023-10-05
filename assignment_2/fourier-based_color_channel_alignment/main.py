@@ -12,9 +12,9 @@ def main():
     # High Resolution Image Alignment
     if config.high_res:
         logger.log_info("Start multiscale alignment")
-        high_res_alignment_image_names = os.listdir(path=config.high_res_images_dir)
+        high_res_img_names = os.listdir(path=config.high_res_images_dir)
 
-        for filename in high_res_alignment_image_names:
+        for filename in high_res_img_names:
             logger.log_info("Processing file %s" % filename)
             filepath = os.path.join(config.high_res_images_dir, filename)
             mat = align.align(filepath=filepath, high_res=config.high_res)
@@ -33,9 +33,9 @@ def main():
     # Low Resolution Image Alignment
     else:
         logger.log_info("Start single-scale alignment")
-        low_res_alignment_image_names = os.listdir(path=config.low_res_images_dir)
+        low_res_img_names = os.listdir(path=config.low_res_images_dir)
 
-        for filename in low_res_alignment_image_names:
+        for filename in low_res_img_names:
             logger.log_info("Processing file %s" % filename)
             filepath = os.path.join(config.low_res_images_dir, filename)
             mat = align.align(filepath=filepath, high_res=config.high_res)
