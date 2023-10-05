@@ -2,5 +2,5 @@
 .idea
 __pycache__/
 *.zip
-Assignment_2/data/
-Assignment_2/data_hires/
+fourier-based_alignment_and_finding_covariant_neighborhoods/fourier-based_color_channel_alignment/data
+fourier-based_alignment_and_finding_covariant_neighborhoods/fourier-based_color_channel_alignment/data_hires
