@@ -21,7 +21,6 @@ gaussian_blur_sigmaY = 1
 laplacian_kernel_size = 3
 
 # test
-
 base_ch_order = ['B', 'G', 'R']
 high_res = False
 LoG_filter = False
