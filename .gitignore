@@ -2,5 +2,5 @@
 .idea
 __pycache__/
 *.zip
-color_channel_alignment_blob_construction/fourier-based_color_channel_alignment/data
-color_channel_alignment_blob_construction/fourier-based_color_channel_alignment/data_hires
+assignment_2/fourier-based_color_channel_alignment/data
+assignment_2/fourier-based_color_channel_alignment/data_hires
