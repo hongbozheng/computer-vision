@@ -3,6 +3,7 @@ import logger
 # directories
 low_res_images_dir = "data"
 high_res_images_dir = "data_hires"
+LoG_ft_align_results_dir = "LoG_fourier-based_alignment_results"
 ft_align_results_dir = "fourier-based_alignment_results"
 
 # remove border & split images
@@ -24,6 +25,7 @@ laplacian_kernel_size = 3
 
 # test
 base_ch_order = ['B', 'G', 'R']
-high_res = False
+high_res = True
+LoG_filter = False
 imshow = False
 log_level = logger.LogLevel.info

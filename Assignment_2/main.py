@@ -21,10 +21,13 @@ def main():
             for (i, m) in enumerate(mat):
                 file_name, file_ext = os.path.splitext(p=filename)
                 new_filename = file_name + '_' + config.base_ch_order[i] + file_ext
-                result_img_path = os.path.join(config.ft_align_results_dir, new_filename)
+                if config.LoG_filter:
+                    result_img_path = os.path.join(config.LoG_ft_align_results_dir, new_filename)
+                else:
+                    result_img_path = os.path.join(config.ft_align_results_dir, new_filename)
                 cv2.imwrite(filename=result_img_path, img=m)
                 if config.imshow:
-                    cv2.imshow(winname="High-Res Image Alignment", mat=mat)
+                    cv2.imshow(winname="High-Res Image Alignment", mat=m)
                     cv2.waitKey(0)
 
     # Low Resolution Image Alignment
@@ -40,7 +43,10 @@ def main():
                 m = m[:, :, ::-1]
                 file_name, file_ext = os.path.splitext(p=filename)
                 new_filename = file_name + '_' + config.base_ch_order[i] + file_ext
-                result_img_path = os.path.join(config.ft_align_results_dir, new_filename)
+                if config.LoG_filter:
+                    result_img_path = os.path.join(config.LoG_ft_align_results_dir, new_filename)
+                else:
+                    result_img_path = os.path.join(config.ft_align_results_dir, new_filename)
                 image = PIL.Image.fromarray(obj=m)
                 image.save(fp=result_img_path)
                 if config.imshow:

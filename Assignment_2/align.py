@@ -160,10 +160,11 @@ def find_disp(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray) -> tuple[in
     :return: displacement and best score
     """
 
-    base_ch_mat = preprocess_image(mat=base_ch_mat)
-    # base_ch_mat = cv2.filter2D(src=base_ch_mat, ddepth=-1, kernel=LoG_Filter)
-    cmp_ch_mat = preprocess_image(mat=cmp_ch_mat)
-    # cmp_ch_mat = cv2.filter2D(src=cmp_ch_mat, ddepth=-1, kernel=LoG_Filter)
+    if config.LoG_filter:
+        base_ch_mat = preprocess_image(mat=base_ch_mat)
+        # base_ch_mat = cv2.filter2D(src=base_ch_mat, ddepth=-1, kernel=LoG_Filter)
+        cmp_ch_mat = preprocess_image(mat=cmp_ch_mat)
+        # cmp_ch_mat = cv2.filter2D(src=cmp_ch_mat, ddepth=-1, kernel=LoG_Filter)
     base_ch_ft = numpy.fft.fft2(a=base_ch_mat)
     cmp_ch_ft = numpy.fft.fft2(a=cmp_ch_mat)
     cmp_ch_ft_conj = numpy.conjugate(cmp_ch_ft)
