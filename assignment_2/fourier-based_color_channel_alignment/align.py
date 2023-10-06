@@ -176,7 +176,11 @@ def find_disp(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray) -> tuple[in
     return disp
 
 
-def try_each_align(b_ch_mat: numpy.ndarray, g_ch_mat: numpy.ndarray, r_ch_mat: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+def try_ch_align(
+    b_ch_mat: numpy.ndarray,
+    g_ch_mat: numpy.ndarray,
+    r_ch_mat: numpy.ndarray
+) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
     Find the all displacement by trying blue, green, red channel as base channel
 
@@ -236,7 +240,13 @@ def channel_overlap(base_ch_mat: numpy.ndarray,
     return base_ch_coord, cmp_ch_coord
 
 
-def bgr_channel_overlap(base_ch_mat: numpy.ndarray, cmp_ch_0_mat: numpy.ndarray, cmp_ch_1_mat: numpy.ndarray, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
+def bgr_channel_overlap(
+    base_ch_mat: numpy.ndarray,
+    cmp_ch_0_mat: numpy.ndarray,
+    cmp_ch_1_mat: numpy.ndarray,
+    disp_0: tuple[int, int],
+    disp_1: tuple[int, int]
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
     Find the overlap area between base channel image and two compare channel images
 
@@ -285,7 +295,14 @@ def bgr_channel_overlap(base_ch_mat: numpy.ndarray, cmp_ch_0_mat: numpy.ndarray,
     return base_ch_coord, cmp_ch_0_coord, cmp_ch_1_coord
 
 
-def stack_bgr_channels(b_ch_mat: numpy.ndarray, g_ch_mat: numpy.ndarray, r_ch_mat: numpy.ndarray, base_ch: str, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> numpy.ndarray:
+def stack_bgr_channels(
+    b_ch_mat: numpy.ndarray,
+    g_ch_mat: numpy.ndarray,
+    r_ch_mat: numpy.ndarray,
+    base_ch: str,
+    disp_0: tuple[int, int],
+    disp_1: tuple[int, int]
+) -> numpy.ndarray:
     """
     Stack B, G, R, channel to form the final RGB image
 
@@ -338,13 +355,13 @@ def align(filepath: str, high_res: bool) -> tuple[numpy.ndarray, numpy.ndarray, 
         mat = rm_border(mat=mat, border_search_range=config.high_res_border_search_range,
                         white_thres=config.white_threshold, black_thres=config.black_threshold)
         b_ch_mat, g_ch_mat, r_ch_mat = split_image(mat=mat, border_search_range=config.high_res_border_search_range)
-        mat_b, mat_g, mat_r = try_each_align(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat)
+        mat_b, mat_g, mat_r = try_ch_align(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat)
     else:
         image = PIL.Image.open(fp=filepath)
         mat = numpy.asarray(image)
         mat = rm_border(mat=mat, border_search_range=config.low_res_border_search_range,
                         white_thres=config.white_threshold, black_thres=config.black_threshold)
         b_ch_mat, g_ch_mat, r_ch_mat = split_image(mat=mat, border_search_range=config.low_res_border_search_range)
-        mat_b, mat_g, mat_r = try_each_align(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat)
+        mat_b, mat_g, mat_r = try_ch_align(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat)
 
     return mat_b, mat_g, mat_r
