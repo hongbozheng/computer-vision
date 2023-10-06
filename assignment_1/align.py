@@ -226,11 +226,13 @@ def blur_and_downsize(mat: numpy.ndarray) -> numpy.ndarray:
     return blur_downsize_arr
 
 
-def pyr_find_disp(num_pyr_levels: int,
-                  metric: str,
-                  base_ch_mat: numpy.ndarray,
-                  cmp_ch_mat: numpy.ndarray,
-                  disp_range: int) -> tuple[tuple[int, int], float]:
+def pyr_find_disp(
+    num_pyr_levels: int,
+    metric: str,
+    base_ch_mat: numpy.ndarray,
+    cmp_ch_mat: numpy.ndarray,
+    disp_range: int
+) -> tuple[tuple[int, int], float]:
     """
     Image pyramid find displacement (Recursion)
 
@@ -259,13 +261,15 @@ def pyr_find_disp(num_pyr_levels: int,
         return disp, best_score
 
 
-def find_best_disp(img_pyr: bool,
-                   num_pyr_levels: int,
-                   metric: str,
-                   b_ch_mat: numpy.ndarray,
-                   g_ch_mat: numpy.ndarray,
-                   r_ch_mat: numpy.ndarray,
-                   disp_range: int) -> tuple[str, tuple[int, int], tuple[int, int]]:
+def find_best_disp(
+    img_pyr: bool,
+    num_pyr_levels: int,
+    metric: str,
+    b_ch_mat: numpy.ndarray,
+    g_ch_mat: numpy.ndarray,
+    r_ch_mat: numpy.ndarray,
+    disp_range: int
+) -> tuple[str, tuple[int, int], tuple[int, int]]:
     """
     Find the best displacement by trying blue, green, red channel as base channel
 
@@ -320,9 +324,11 @@ def find_best_disp(img_pyr: bool,
     return disp_info
 
 
-def channel_overlap(base_ch_mat: numpy.ndarray,
-                    cmp_ch_mat: numpy.ndarray,
-                    disp: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
+def channel_overlap(
+    base_ch_mat: numpy.ndarray,
+    cmp_ch_mat: numpy.ndarray,
+    disp: tuple[int, int]
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
     Find the overlap area between the base channel image and the compare channel image under displacement
 
@@ -350,7 +356,13 @@ def channel_overlap(base_ch_mat: numpy.ndarray,
     return base_ch_coord, cmp_ch_coord
 
 
-def bgr_channel_overlap(base_ch_mat: numpy.ndarray, cmp_ch_0_mat: numpy.ndarray, cmp_ch_1_mat: numpy.ndarray, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
+def bgr_channel_overlap(
+    base_ch_mat: numpy.ndarray,
+    cmp_ch_0_mat: numpy.ndarray,
+    cmp_ch_1_mat: numpy.ndarray,
+    disp_0: tuple[int, int],
+    disp_1: tuple[int, int]
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
     Find the overlap area between base channel image and two compare channel images
 
@@ -399,7 +411,14 @@ def bgr_channel_overlap(base_ch_mat: numpy.ndarray, cmp_ch_0_mat: numpy.ndarray,
     return base_ch_coord, cmp_ch_0_coord, cmp_ch_1_coord
 
 
-def stack_bgr_channels(b_ch_mat: numpy.ndarray, g_ch_mat: numpy.ndarray, r_ch_mat: numpy.ndarray, base_ch: str, disp_0: tuple[int, int], disp_1: tuple[int, int]) -> numpy.ndarray:
+def stack_bgr_channels(
+    b_ch_mat: numpy.ndarray,
+    g_ch_mat: numpy.ndarray,
+    r_ch_mat: numpy.ndarray,
+    base_ch: str,
+    disp_0: tuple[int, int],
+    disp_1: tuple[int, int]
+) -> numpy.ndarray:
     """
     Stack B, G, R, channel to form the final RGB image
 
