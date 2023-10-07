@@ -10,7 +10,7 @@ def main():
 
     for filename in img_names:
         filepath = os.path.join(config.images_dir, filename)
-        blob.construct_blob(filepath=filepath, levels=config.levels, scale_ratio=config.scale_ratio)
+        blob.construct_blob(filepath=filepath, levels=config.levels)
     return
 
 if __name__ == "__main__":
