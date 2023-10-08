@@ -1,8 +1,11 @@
 import logger
 
 # directories
-images_dir = "images"
-images_result_dir = "results"
+imgs_dir = "images"
+imgs_res_dir = "results"
+
+# transformation
+xform_types = {"sl"}#"orig"}#, "sl", "sr", "rccw", "rcw", "x2"}
 
 # good feature to track
 # maxCorners   - Maximum number of corners to return. If there are more corners than are found, the strongest of them is
@@ -16,8 +19,8 @@ images_result_dir = "results"
 # useHarrisDetector - whether to use Shi-Tomasi or Harris Corner
 # k                 - Free parameter of the Harris detector
 max_corners = 0
-quality_level = 0.10
-min_dist = 1
+quality_level = 0.01
+min_dist = 5
 blk_size = 10
 harris = True
 k = 0.05
@@ -33,5 +36,5 @@ arrow_color = "magenta"
 
 # test
 levels = 15
-imshow = False
+imshow = True
 log_level = logger.LogLevel.info

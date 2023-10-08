@@ -1,5 +1,6 @@
 import config
 import cv2
+import logger
 import numpy
 import scipy
 import skimage
@@ -20,7 +21,7 @@ def mark_corners_plt_blobs_orien(
     mark_color: str,
     blob_color: str,
     arrow_color: str
-) -> None:
+) -> matplotlib.pyplot.subplot:
     """
     Mark all corners with 'x', plot all blobs, and the orientations of the window
 
@@ -40,7 +41,7 @@ def mark_corners_plt_blobs_orien(
     :param mark_color: color of mark (corners)
     :param blob_color: color of blobs
     :param arrow_color: color of arrows
-    :return: None
+    :return: fig, ax: matplotlib.pyplot.subplot
     """
 
     fig, ax = matplotlib.pyplot.subplots()
@@ -55,13 +56,11 @@ def mark_corners_plt_blobs_orien(
         ax.arrow(x=x, y=y, dx=dx, dy=dy, head_width=arrow_head_w, head_length=arrow_head_l, color=arrow_color)
 
     matplotlib.pyplot.title('%i circles' % len(cx))
-    matplotlib.pyplot.show()
 
-    return
+    return fig, ax
 
 
-def construct_blob(filepath: str, levels: int):
-    mat = cv2.imread(filename=filepath)
+def construct_blob(mat: numpy.ndarray, levels: int) -> matplotlib.pyplot.subplot:
     mat_gray = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2GRAY)
     mat_gray = mat_gray / 255.0
     mat_gray = mat_gray.astype(dtype=numpy.float32)
@@ -91,9 +90,51 @@ def construct_blob(filepath: str, levels: int):
     y_grad = y_grad[corner_coords[:, 1], corner_coords[:, 0]]
 
     mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
-    mark_corners_plt_blobs_orien(mat=mat, cx=corner_coords[:, 0], cy=corner_coords[:, 1], mark_size=config.mark_size,
-                                 rad=radii, x_grad=x_grad, y_grad=y_grad, arrow_head_w=config.arrow_head_w,
-                                 arrow_head_l=config.arrow_head_l, mark_color=config.mark_color,
-                                 blob_color=config.blob_color, arrow_color=config.arrow_color)
+    fig, ax = mark_corners_plt_blobs_orien(mat=mat, cx=corner_coords[:, 0], cy=corner_coords[:, 1],
+                                           mark_size=config.mark_size, rad=radii, x_grad=x_grad, y_grad=y_grad,
+                                           arrow_head_w=config.arrow_head_w, arrow_head_l=config.arrow_head_l,
+                                           mark_color=config.mark_color, blob_color=config.blob_color,
+                                           arrow_color=config.arrow_color)
 
-    return
+    return fig, ax
+
+
+def xform(filepath: str, levels: int, xf: str) -> matplotlib.pyplot.subplot:
+    """
+    Perform transform on the original image
+
+    :param filepath: filepath of the input image
+    :param levels: number of image pyramid levels
+    :param xf: transform type
+    :return: matplotlib.pyplot.subplot
+    """
+
+    if xf not in {"orig", "sl", "sr", "rccw", "rcw", "x2"}:
+        logger.log_error("Invalid transform type.")
+
+    mat = cv2.imread(filename=filepath)
+
+    if xf == "orig":
+        fig, ax = construct_blob(mat=mat, levels=levels)
+    elif xf == "sl":
+        mat_sl = numpy.roll(a=mat, shift=-mat.shape[1]//5, axis=1)
+        print(mat_sl.shape)
+        mat_sl = mat_sl[:, :mat.shape[1]-mat.shape[1]//5, :]
+        print(mat_sl.shape)
+        exit()
+        canvas[:, 0:img.shape[1] - img.shape[1] // 5, :] = img[:, 0:img.shape[1] - img.shape[1] // 5, :]
+        img = canvas
+    elif xf == "sr":
+        pass
+    elif xf == "rccw":
+        mat = cv2.rotate(src=mat, rotateCode=cv2.ROTATE_90_COUNTERCLOCKWISE)
+        fig, ax = construct_blob(mat=mat, levels=levels)
+    elif xf == "rcw":
+        mat = cv2.rotate(src=mat, rotateCode=cv2.ROTATE_90_CLOCKWISE)
+        fig, ax = construct_blob(mat=mat, levels=levels)
+    elif xf == "x2":
+        mat_x2 = cv2.resize(src=mat, dsize=(mat.shape[1]*2, mat.shape[0]*2))
+        mat_x2 = mat_x2[mat.shape[0]//2:mat.shape[0]//2+mat.shape[0], mat.shape[1]//2:mat.shape[1]//2+mat.shape[1]]
+        fig, ax = construct_blob(mat=mat_x2, levels=levels)
+
+    return fig, ax
