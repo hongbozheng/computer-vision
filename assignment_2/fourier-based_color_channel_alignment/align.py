@@ -151,7 +151,7 @@ def LoG_filter(mat: numpy.ndarray) -> numpy.ndarray:
     return mat
 
 
-def find_disp(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray) -> tuple[int, int]:
+def find_disp(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray) -> tuple[tuple[int, int], numpy.ndarray]:
     """
     Find the displacement of the compare channel image with respect to the base channel image with FT
 
@@ -173,14 +173,16 @@ def find_disp(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray) -> tuple[in
     coord = numpy.unravel_index(indices=numpy.argmax(a=inv_ft), shape=inv_ft.shape)
     disp = (coord[0] - inv_ft.shape[0]//2, coord[1] - inv_ft.shape[1]//2)
 
-    return disp
+    return disp, inv_ft
 
 
 def try_ch_align(
     b_ch_mat: numpy.ndarray,
     g_ch_mat: numpy.ndarray,
     r_ch_mat: numpy.ndarray
-) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+) -> tuple[tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray],
+           tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray],
+           tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]]:
     """
     Find the all displacement by trying blue, green, red channel as base channel
 
@@ -191,23 +193,23 @@ def try_ch_align(
     :return: displacement information (base channel, displacement for first channel, displacement for second channel)
     """
 
-    disp_g = find_disp(base_ch_mat=b_ch_mat, cmp_ch_mat=g_ch_mat)
-    disp_r = find_disp(base_ch_mat=b_ch_mat, cmp_ch_mat=r_ch_mat)
+    disp_g, inv_ft_bg = find_disp(base_ch_mat=b_ch_mat, cmp_ch_mat=g_ch_mat)
+    disp_r, inv_ft_br = find_disp(base_ch_mat=b_ch_mat, cmp_ch_mat=r_ch_mat)
     mat_b = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                base_ch='B', disp_0=disp_g, disp_1=disp_r)
     print('B', disp_g, disp_r)
-    disp_b = find_disp(base_ch_mat=g_ch_mat, cmp_ch_mat=b_ch_mat)
-    disp_r = find_disp(base_ch_mat=g_ch_mat, cmp_ch_mat=r_ch_mat)
+    disp_b, inv_ft_gb = find_disp(base_ch_mat=g_ch_mat, cmp_ch_mat=b_ch_mat)
+    disp_r, inv_ft_gr = find_disp(base_ch_mat=g_ch_mat, cmp_ch_mat=r_ch_mat)
     mat_g = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                base_ch='G', disp_0=disp_b, disp_1=disp_r)
     print('G', disp_b, disp_r)
-    disp_b = find_disp(base_ch_mat=r_ch_mat, cmp_ch_mat=b_ch_mat)
-    disp_g = find_disp(base_ch_mat=r_ch_mat, cmp_ch_mat=g_ch_mat)
+    disp_b, inv_ft_rb = find_disp(base_ch_mat=r_ch_mat, cmp_ch_mat=b_ch_mat)
+    disp_g, inv_ft_rg = find_disp(base_ch_mat=r_ch_mat, cmp_ch_mat=g_ch_mat)
     mat_r = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                base_ch='R', disp_0=disp_b, disp_1=disp_g)
     print('R', disp_b, disp_g)
 
-    return mat_b, mat_g, mat_r
+    return (mat_b, inv_ft_bg, inv_ft_br), (mat_g, inv_ft_gb, inv_ft_gr), (mat_r, inv_ft_rb, inv_ft_rg)
 
 
 def channel_overlap(base_ch_mat: numpy.ndarray,
@@ -341,7 +343,12 @@ def stack_bgr_channels(
     return mat
 
 
-def align(filepath: str, high_res: bool) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+def align(
+    filepath: str,
+    high_res: bool
+) -> tuple[tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray],
+           tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray],
+           tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]]:
     """
     Perform fourier-based alignment with high-res/low-res image
 
