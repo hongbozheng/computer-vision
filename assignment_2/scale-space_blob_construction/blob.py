@@ -7,9 +7,22 @@ import matplotlib.patches
 import matplotlib.pyplot
 
 
-def plt_blobs(mat, cx, cy, rad, color="cyan") -> None:
+def mark_corners_plt_blobs_orien(
+    mat: numpy.ndarray,
+    cx: numpy.ndarray,
+    cy: numpy.ndarray,
+    mark_size: int,
+    x_grad: numpy.ndarray,
+    y_grad: numpy.ndarray,
+    rad: numpy.ndarray,
+    arrow_head_w: int,
+    arrow_head_l: int,
+    mark_color: str,
+    blob_color: str,
+    arrow_color: str
+) -> None:
     """
-    Draw all blobs on the image
+    Mark all corners with 'x', plot all blobs, and the orientations of the window
 
     mat: numpy array, representing the grayscsale image
     cx, cy: numpy arrays or lists, centers of the detected blobs
@@ -18,8 +31,15 @@ def plt_blobs(mat, cx, cy, rad, color="cyan") -> None:
     :param mat: image matrix
     :param cx: x-coord of centers of the detected blobs
     :param cy: x-coord of centers of the detected blobs
+    :param mark_size: size of the mark
+    :param x_grad: gradient in x-direction
+    :param y_grad: gradient in y-direction
     :param rad: radius of the detected blobs
-    :param color: color of the blob
+    :param arrow_head_w: total width of the full arrow head
+    :param arrow_head_l: length of arrow head
+    :param mark_color: color of mark (corners)
+    :param blob_color: color of blobs
+    :param arrow_color: color of arrows
     :return: None
     """
 
@@ -27,9 +47,12 @@ def plt_blobs(mat, cx, cy, rad, color="cyan") -> None:
     ax.set_aspect("equal")
     ax.imshow(mat, cmap="gray")
 
-    for x, y, r in zip(cx, cy, rad):
-        circ = matplotlib.patches.Circle(xy=(x, y), radius=r, color=color, fill=False)
-        ax.add_patch(circ)
+    ax.scatter(x=cx, y=cy, s=mark_size, color=mark_color, marker='x')
+    for (x, y, r) in zip(cx, cy, rad):
+        circle = matplotlib.patches.Circle(xy=(x, y), radius=r, color=blob_color, fill=False)
+        ax.add_patch(circle)
+    for (x, y, dx, dy) in zip(cx, cy, x_grad, y_grad):
+        ax.arrow(x=x, y=y, dx=dx, dy=dy, head_width=arrow_head_w, head_length=arrow_head_l, color=arrow_color)
 
     matplotlib.pyplot.title('%i circles' % len(cx))
     matplotlib.pyplot.show()
@@ -51,9 +74,9 @@ def construct_blob(filepath: str, levels: int):
     img_pyr = numpy.empty(shape=[levels, h, w], dtype=numpy.float32)
 
     for k in range(1, levels):
-        mat_gray = skimage.transform.resize(image=mat_gray, output_shape=(h//k, w//k))
-        print(mat_gray.shape)
-        mat_log = scipy.ndimage.filters.gaussian_laplace(input=mat_gray, sigma=1)
+        mat_ds = skimage.transform.resize(image=mat_gray, output_shape=(h//k, w//k))
+        print(mat_ds.shape)
+        mat_log = scipy.ndimage.filters.gaussian_laplace(input=mat_ds, sigma=1)
         mat_log = skimage.transform.resize(image=mat_log, output_shape=(h, w))
         img_pyr[k, :, :] = mat_log
 
@@ -62,7 +85,15 @@ def construct_blob(filepath: str, levels: int):
     for (i, (y, x)) in enumerate(corner_coords):
         radii[i] = numpy.argmax(a=img_pyr[:, x, y])+1
 
+    x_grad = cv2.Sobel(mat_gray, cv2.CV_64F, dx=1, dy=0, ksize=config.ksize)
+    y_grad = cv2.Sobel(mat_gray, cv2.CV_64F, dx=0, dy=1, ksize=config.ksize)
+    x_grad = x_grad[corner_coords[:, 1], corner_coords[:, 0]]
+    y_grad = y_grad[corner_coords[:, 1], corner_coords[:, 0]]
+
     mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
-    plt_blobs(mat=mat, cx=corner_coords[:, 0], cy=corner_coords[:, 1], rad=radii)
+    mark_corners_plt_blobs_orien(mat=mat, cx=corner_coords[:, 0], cy=corner_coords[:, 1], mark_size=config.mark_size,
+                                 rad=radii, x_grad=x_grad, y_grad=y_grad, arrow_head_w=config.arrow_head_w,
+                                 arrow_head_l=config.arrow_head_l, mark_color=config.mark_color,
+                                 blob_color=config.blob_color, arrow_color=config.arrow_color)
 
     return

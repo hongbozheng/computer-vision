@@ -16,11 +16,20 @@ images_result_dir = "results"
 # useHarrisDetector - whether to use Shi-Tomasi or Harris Corner
 # k                 - Free parameter of the Harris detector
 max_corners = 0
-quality_level = 0.01
+quality_level = 0.10
 min_dist = 1
-blk_size = 2
+blk_size = 10
 harris = True
 k = 0.05
+ksize = 5
+
+# mark corners & plt blobs & orientations
+mark_size = 8
+arrow_head_w = 3
+arrow_head_l = 2
+mark_color = "orange"
+blob_color = "cyan"
+arrow_color = "magenta"
 
 # test
 levels = 15
