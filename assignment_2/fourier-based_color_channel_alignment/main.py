@@ -14,7 +14,7 @@ def main():
     matplotlib.pyplot.rc(group="font", family="serif")
     # High Resolution Image Alignment
     if config.high_res:
-        logger.log_info("Fourier-based color channel alignment with low-resolution images")
+        logger.log_info("Fourier-based color channel alignment with high-resolution images")
         high_res_img_names = os.listdir(path=config.high_res_images_dir)
         if config.LoG_filter:
             if not os.path.exists(path=config.LoG_ft_align_results_dir):
@@ -103,10 +103,11 @@ def main():
                 if config.imshow:
                     cv2.imshow(winname="High-Res Image Alignment", mat=m)
                     cv2.waitKey(0)
+                    matplotlib.pyplot.show()
 
     # Low Resolution Image Alignment
     else:
-        logger.log_info("Fourier-based color channel alignment with high-resolution images")
+        logger.log_info("Fourier-based color channel alignment with low-resolution images")
         low_res_img_names = os.listdir(path=config.low_res_images_dir)
 
         for filename in low_res_img_names:
