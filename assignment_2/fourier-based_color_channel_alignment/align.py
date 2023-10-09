@@ -197,17 +197,14 @@ def try_ch_align(
     disp_r, inv_ft_br = find_disp(base_ch_mat=b_ch_mat, cmp_ch_mat=r_ch_mat)
     mat_b = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                base_ch='B', disp_0=disp_g, disp_1=disp_r)
-    print('B', disp_g, disp_r)
     disp_b, inv_ft_gb = find_disp(base_ch_mat=g_ch_mat, cmp_ch_mat=b_ch_mat)
     disp_r, inv_ft_gr = find_disp(base_ch_mat=g_ch_mat, cmp_ch_mat=r_ch_mat)
     mat_g = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                base_ch='G', disp_0=disp_b, disp_1=disp_r)
-    print('G', disp_b, disp_r)
     disp_b, inv_ft_rb = find_disp(base_ch_mat=r_ch_mat, cmp_ch_mat=b_ch_mat)
     disp_g, inv_ft_rg = find_disp(base_ch_mat=r_ch_mat, cmp_ch_mat=g_ch_mat)
     mat_r = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
                                base_ch='R', disp_0=disp_b, disp_1=disp_g)
-    print('R', disp_b, disp_g)
 
     return (mat_b, inv_ft_bg, inv_ft_br), (mat_g, inv_ft_gb, inv_ft_gr), (mat_r, inv_ft_rb, inv_ft_rg)
 
