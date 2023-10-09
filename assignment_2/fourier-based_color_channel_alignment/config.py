@@ -23,6 +23,6 @@ laplacian_kernel_size = 3
 # test
 base_ch_order = ['B', 'G', 'R']
 high_res = False
-LoG_filter = True
+LoG_filter = False
 imshow = False
 log_level = logger.LogLevel.info
