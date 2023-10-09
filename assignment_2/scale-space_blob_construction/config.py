@@ -5,7 +5,7 @@ imgs_dir = "images"
 imgs_res_dir = "results"
 
 # transformation
-xform_types = {"sl"}#"orig"}#, "sl", "sr", "rccw", "rcw", "x2"}
+xform_types = {"orig", "sl", "sr", "rccw", "rcw", "x2"}
 
 # good feature to track
 # maxCorners   - Maximum number of corners to return. If there are more corners than are found, the strongest of them is
@@ -19,22 +19,22 @@ xform_types = {"sl"}#"orig"}#, "sl", "sr", "rccw", "rcw", "x2"}
 # useHarrisDetector - whether to use Shi-Tomasi or Harris Corner
 # k                 - Free parameter of the Harris detector
 max_corners = 0
-quality_level = 0.01
+quality_level = 0.075
 min_dist = 5
-blk_size = 10
+blk_size = 5
 harris = True
-k = 0.05
+k = 0.06
 ksize = 5
 
 # mark corners & plt blobs & orientations
-mark_size = 8
-arrow_head_w = 3
-arrow_head_l = 2
+mark_size = 2
+arrow_head_w = 1
+arrow_head_l = 0.5
 mark_color = "orange"
 blob_color = "cyan"
 arrow_color = "magenta"
 
 # test
 levels = 15
-imshow = True
+imshow = False
 log_level = logger.LogLevel.info

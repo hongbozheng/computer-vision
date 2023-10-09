@@ -74,7 +74,6 @@ def construct_blob(mat: numpy.ndarray, levels: int) -> matplotlib.pyplot.subplot
 
     for k in range(1, levels):
         mat_ds = skimage.transform.resize(image=mat_gray, output_shape=(h//k, w//k))
-        print(mat_ds.shape)
         mat_log = scipy.ndimage.filters.gaussian_laplace(input=mat_ds, sigma=1)
         mat_log = skimage.transform.resize(image=mat_log, output_shape=(h, w))
         img_pyr[k, :, :] = mat_log
@@ -118,14 +117,12 @@ def xform(filepath: str, levels: int, xf: str) -> matplotlib.pyplot.subplot:
         fig, ax = construct_blob(mat=mat, levels=levels)
     elif xf == "sl":
         mat_sl = numpy.roll(a=mat, shift=-mat.shape[1]//5, axis=1)
-        print(mat_sl.shape)
-        mat_sl = mat_sl[:, :mat.shape[1]-mat.shape[1]//5, :]
-        print(mat_sl.shape)
-        exit()
-        canvas[:, 0:img.shape[1] - img.shape[1] // 5, :] = img[:, 0:img.shape[1] - img.shape[1] // 5, :]
-        img = canvas
+        mat_sl[:, mat.shape[1]-mat.shape[1]//5:mat.shape[1], :] = 0
+        fig, ax = construct_blob(mat=mat_sl, levels=levels)
     elif xf == "sr":
-        pass
+        mat_sr = numpy.roll(a=mat, shift=mat.shape[1]//5, axis=1)
+        mat_sr[:, :mat.shape[1]//5, :] = 0
+        fig, ax = construct_blob(mat=mat_sr, levels=levels)
     elif xf == "rccw":
         mat = cv2.rotate(src=mat, rotateCode=cv2.ROTATE_90_COUNTERCLOCKWISE)
         fig, ax = construct_blob(mat=mat, levels=levels)
