@@ -41,6 +41,7 @@ def main():
                     res_img_dir = os.path.join(config.ft_align_results_dir, res_img_dir)
                 if not os.path.exists(path=res_img_dir):
                     os.mkdir(path=res_img_dir)
+
                 if i == 0:
                     inv_ft_name_0 = "inv_ft_" + config.base_ch_order[1] + ".jpg"
                     inv_ft_name_1 = "inv_ft_" + config.base_ch_order[2] + ".jpg"
@@ -129,6 +130,7 @@ def main():
                     res_img_dir = os.path.join(config.ft_align_results_dir, res_img_dir)
                 if not os.path.exists(path=res_img_dir):
                     os.mkdir(path=res_img_dir)
+
                 if i == 0:
                     inv_ft_name_0 = "inv_ft_" + config.base_ch_order[1] + ".jpg"
                     inv_ft_name_1 = "inv_ft_" + config.base_ch_order[2] + ".jpg"
