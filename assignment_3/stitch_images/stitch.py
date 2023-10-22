@@ -45,23 +45,23 @@ def calc_residual(coords_0: numpy.ndarray, coords_1: numpy.ndarray, H: numpy.nda
     return residuals
 
 
-def plt_inlier_matches(ax, mat_0: numpy.ndarray, mat_1: numpy.ndarray, inliers: numpy.ndarray) -> None:
-    """
-    Plot the matches between two images according to the matched keypoints
-    :param ax: plot handle
-    :param mat_0: left image
-    :param mat_1: right image
-    :param inliers: x,y in the first image and x,y in the second image (Nx4)
-    """
+def plt_inlier_matches(mat_0: numpy.ndarray, mat_1: numpy.ndarray, inliers: numpy.ndarray) -> None:
+    h_0, w_0, _ = mat_0.shape
+    h_1, w_1, _ = mat_1.shape
 
-    res = numpy.hstack(tup=[mat_0, mat_1])
-    ax.set_aspect('equal')
-    ax.imshow(X=res, cmap='gray')
+    canvas = numpy.zeros(shape=(max(h_0, h_1), w_0+w_1, 3), dtype=numpy.uint8)
+    canvas[:, :w_0] = mat_0
+    canvas[:h_1, w_0:] = mat_1
 
+    matplotlib.pyplot.rc(group="font", family="serif")
+    fig, ax = matplotlib.pyplot.subplots(figsize=(10, 8))
+    ax.set_aspect("equal")
+    ax.imshow(X=canvas)
     ax.plot(inliers[:, 0], inliers[:, 1], 'x', color="orange")
-    ax.plot(inliers[:, 2]+mat_0.shape[1], inliers[:, 3], 'x', color="orange")
-    ax.plot([inliers[:, 0], inliers[:, 2]+mat_0.shape[1]], [inliers[:, 1], inliers[:, 3]], color="orange", linewidth=0.4)
-    ax.axis('off')
+    ax.plot(inliers[:, 2]+w_0, inliers[:, 3], 'x', color="orange")
+    ax.plot([inliers[:, 0], inliers[:, 2]+w_0], [inliers[:, 1], inliers[:, 3]], color="orange", linewidth=0.35)
+    ax.axis("off")
+    ax.set_title("%s Inliner Matches" % str(inliers.shape[0]))
 
     matplotlib.pyplot.show()
 
@@ -102,10 +102,9 @@ def ransac(
             inliners_best = numpy.copy(a=inliners)
 
     if config.plt_inliner_matches:
-        fig, ax = matplotlib.pyplot.subplots(figsize=(10, 8))
         mat_0 = cv2.cvtColor(src=mat_0, code=cv2.COLOR_BGR2RGB)
         mat_1 = cv2.cvtColor(src=mat_1, code=cv2.COLOR_BGR2RGB)
-        plt_inlier_matches(ax=ax, mat_0=mat_0, mat_1=mat_1, inliers=inliners_best)
+        plt_inlier_matches(mat_0=mat_0, mat_1=mat_1, inliers=inliners_best)
 
     return H_best
 
@@ -132,12 +131,6 @@ def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> n
 
     mat_merged = mat_0_warped_0 * (mat_1_warped < 3.5e-2).astype(numpy.int8) + mat_1_warped_0 * (mat_1_warped >= 3.5e-2).astype(numpy.int8)
     mat = (mat_merged*255.0).astype(dtype=numpy.uint8)
-
-    if config.imshow:
-        mat_rgb = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
-        matplotlib.pyplot.figure(figsize=(15, 10))
-        matplotlib.pyplot.imshow(X=mat_rgb)
-        matplotlib.pyplot.show()
 
     return mat
 
@@ -170,12 +163,24 @@ def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray) -> numpy.ndarray:
 
     return mat
 
-def stitch_imgs(filepaths: list) -> numpy.ndarray:
-    filepath_0 = filepaths[0]
-    filepath_1 = filepaths[1]
-    mat_0 = cv2.imread(filename=filepath_0)
-    mat_1 = cv2.imread(filename=filepath_1)
 
-    mat = stitch_2_imgs(mat_0=mat_0, mat_1=mat_1)
+def stitch_multi_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, mat_2: numpy.ndarray):
+
+    return
+
+
+def stitch_imgs(filepaths: list) -> numpy.ndarray:
+    if len(filepaths) > 2:
+        mat = cv2.imread(filename=filepaths[0])
+        for filepath in filepaths[1:]:
+           mat_0 = cv2.imread(filename=filepath)
+           mat = stitch_2_imgs(mat_0=mat, mat_1=mat_0)
+    else:
+        filepath_0 = filepaths[0]
+        filepath_1 = filepaths[1]
+        mat_0 = cv2.imread(filename=filepath_0)
+        mat_1 = cv2.imread(filename=filepath_1)
+
+        mat = stitch_2_imgs(mat_0=mat_0, mat_1=mat_1)
 
     return mat

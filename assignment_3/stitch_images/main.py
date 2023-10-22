@@ -4,17 +4,42 @@ import config
 import cv2
 import logger
 import matplotlib.pyplot
-import numpy
 import os
-import PIL.Image
 import stitch
 
 
 def main():
-    if not config.multi_imgs:
+    if config.multi_imgs:
+        logger.log_info("Start stitching multiple images")
+        dirs = os.listdir(path=config.img_multi_dir)
+
+        for dir in dirs:
+            logger.log_info("Processing image %s" % dir)
+            filepaths = []
+            filenames = os.listdir(path=os.path.join(config.img_multi_dir, dir))
+            for filename in filenames:
+                filepath = os.path.join(config.img_multi_dir, dir, filename)
+                filepaths.append(filepath)
+
+            mat = stitch.stitch_imgs(filepaths=filepaths)
+
+            os.makedirs(name=config.res_dir, exist_ok=True)
+            res_img_path = os.path.join(config.res_dir, dir+".jpg")
+            cv2.imwrite(filename=res_img_path, img=mat)
+
+            if config.imshow:
+                mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
+                fig, ax = matplotlib.pyplot.subplots(figsize=(15, 10))
+                ax.imshow(X=mat)
+                ax.set_title("Stitched Image")
+                matplotlib.pyplot.show()
+
+    else:
+        logger.log_info("Start stitching 2 images")
         dirs = os.listdir(path=config.img_dir)
 
         for dir in dirs:
+            logger.log_info("Processing image %s" % dir)
             filepaths = []
             filenames = os.listdir(path=os.path.join(config.img_dir, dir))
             for filename in filenames:
@@ -22,13 +47,17 @@ def main():
                 filepaths.append(filepath)
 
             mat = stitch.stitch_imgs(filepaths=filepaths)
-            # matplotlib.pyplot.rc(group="font", family="serif")
 
-            if not os.path.exists(path=config.res_dir):
-                os.mkdir(path=config.res_dir)
-
+            os.makedirs(name=config.res_dir, exist_ok=True)
             res_img_path = os.path.join(config.res_dir, dir+".jpg")
             cv2.imwrite(filename=res_img_path, img=mat)
+
+            if config.imshow:
+                mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
+                fig, ax = matplotlib.pyplot.subplots(figsize=(15, 10))
+                ax.imshow(X=mat)
+                ax.set_title("Stitched Image")
+                matplotlib.pyplot.show()
 
     return
 
