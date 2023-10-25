@@ -1,5 +1,7 @@
 import config
 import cv2
+import matplotlib.axes
+import matplotlib.figure
 import matplotlib.pyplot
 import numpy
 import scipy
@@ -45,37 +47,37 @@ def calc_residual(coords_0: numpy.ndarray, coords_1: numpy.ndarray, H: numpy.nda
     return residuals
 
 
-def plt_inlier_matches(mat_0: numpy.ndarray, mat_1: numpy.ndarray, inliers: numpy.ndarray) -> None:
+def plt_inlier_matches(mat_0: numpy.ndarray, mat_1: numpy.ndarray, inliers: numpy.ndarray, avg_res: float) -> matplotlib.figure.Figure:
     h_0, w_0, _ = mat_0.shape
     h_1, w_1, _ = mat_1.shape
+    thres = 35
 
-    canvas = numpy.zeros(shape=(max(h_0, h_1), w_0+w_1, 3), dtype=numpy.uint8)
+    canvas = numpy.full(shape=(max(h_0, h_1), w_0 + w_1 + thres, 3), fill_value=255, dtype=numpy.uint8)
     canvas[:, :w_0] = mat_0
-    canvas[:h_1, w_0:] = mat_1
+    canvas[:h_1, w_0 + thres:] = mat_1
 
     matplotlib.pyplot.rc(group="font", family="serif")
-    fig, ax = matplotlib.pyplot.subplots(figsize=(10, 8))
+    fig, ax = matplotlib.pyplot.subplots(figsize=(15, 10))
     ax.set_aspect("equal")
     ax.imshow(X=canvas)
-    ax.plot(inliers[:, 0], inliers[:, 1], 'x', color="orange")
-    ax.plot(inliers[:, 2]+w_0, inliers[:, 3], 'x', color="orange")
-    ax.plot([inliers[:, 0], inliers[:, 2]+w_0], [inliers[:, 1], inliers[:, 3]], color="orange", linewidth=0.35)
+    ax.plot(inliers[:, 0], inliers[:, 1], 'x', color="orange", markersize=5)
+    ax.plot(inliers[:, 2] + w_0 + thres, inliers[:, 3], 'x', color="orange", markersize=5)
+    ax.plot([inliers[:, 0], inliers[:, 2] + w_0 + thres], [inliers[:, 1], inliers[:, 3]], color="cyan", linewidth=0.50)
     ax.axis("off")
-    ax.set_title("%s Inliner Matches" % str(inliers.shape[0]))
+    ax.set_title("%s Inliner Matches     Average Residual = %s" % (str(inliers.shape[0]), str(avg_res)))
 
-    matplotlib.pyplot.show()
+    if config.plt_inliner_matches:
+        matplotlib.pyplot.show()
 
-    return
+    return fig
 
 
 def ransac(
     coords_0: numpy.ndarray,
     coords_1: numpy.ndarray,
     num_iters: int,
-    thres: float,
-    mat_0: numpy.ndarray,
-    mat_1: numpy.ndarray
-) -> numpy.ndarray:
+    thres: float
+) -> tuple[numpy.ndarray, numpy.ndarray, float]:
     max_inliners = 0
     H_best = numpy.array(object=[], dtype=numpy.float64)
     inliners_best = numpy.array(object=[], dtype=numpy.float64)
@@ -100,13 +102,9 @@ def ransac(
             coords_1_inliners = coords_1[indices]
             inliners = numpy.concatenate((coords_0_inliners, coords_1_inliners), axis=1)
             inliners_best = numpy.copy(a=inliners)
+            avg_res = numpy.sum(a=residuals) / inliners.shape[0]
 
-    if config.plt_inliner_matches:
-        mat_0 = cv2.cvtColor(src=mat_0, code=cv2.COLOR_BGR2RGB)
-        mat_1 = cv2.cvtColor(src=mat_1, code=cv2.COLOR_BGR2RGB)
-        plt_inlier_matches(mat_0=mat_0, mat_1=mat_1, inliers=inliners_best)
-
-    return H_best
+    return H_best, inliners_best, avg_res
 
 
 def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> numpy.ndarray:
@@ -135,7 +133,7 @@ def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> n
     return mat
 
 
-def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray) -> numpy.ndarray:
+def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray) -> tuple[numpy.ndarray, matplotlib.figure.Figure]:
     mat_0_gray = cv2.cvtColor(src=mat_0, code=cv2.COLOR_BGR2GRAY)
     mat_1_gray = cv2.cvtColor(src=mat_1, code=cv2.COLOR_BGR2GRAY)
 
@@ -156,31 +154,34 @@ def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray) -> numpy.ndarray:
     coords_0 = numpy.row_stack(tup=coords_0, dtype=numpy.float64)
     coords_1 = numpy.row_stack(tup=coords_1, dtype=numpy.float32)
 
-    H = ransac(coords_0=coords_0, coords_1=coords_1, num_iters=config.ransac_num_iters,
-               thres=config.ransac_thres, mat_0=mat_0, mat_1=mat_1)
+    H, inliners, avg_res = ransac(coords_0=coords_0, coords_1=coords_1, num_iters=config.ransac_num_iters,
+                                  thres=config.ransac_thres)
 
     mat = warp_imgs(mat_0=mat_1, mat_1=mat_0, H=H)
 
-    return mat
+    mat_0 = cv2.cvtColor(src=mat_0, code=cv2.COLOR_BGR2RGB)
+    mat_1 = cv2.cvtColor(src=mat_1, code=cv2.COLOR_BGR2RGB)
+    fig = plt_inlier_matches(mat_0=mat_0, mat_1=mat_1, inliers=inliners, avg_res=avg_res)
+
+    return mat, fig
 
 
-def stitch_multi_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, mat_2: numpy.ndarray):
+def stitch_imgs(filepaths: list) -> tuple[numpy.ndarray, list[matplotlib.figure.Figure]]:
+    figs = []
 
-    return
-
-
-def stitch_imgs(filepaths: list) -> numpy.ndarray:
     if len(filepaths) > 2:
         mat = cv2.imread(filename=filepaths[0])
         for filepath in filepaths[1:]:
-           mat_0 = cv2.imread(filename=filepath)
-           mat = stitch_2_imgs(mat_0=mat, mat_1=mat_0)
+            mat_0 = cv2.imread(filename=filepath)
+            mat, fig = stitch_2_imgs(mat_0=mat, mat_1=mat_0)
+            figs.append(fig)
     else:
         filepath_0 = filepaths[0]
         filepath_1 = filepaths[1]
         mat_0 = cv2.imread(filename=filepath_0)
         mat_1 = cv2.imread(filename=filepath_1)
 
-        mat = stitch_2_imgs(mat_0=mat_0, mat_1=mat_1)
+        mat, fig = stitch_2_imgs(mat_0=mat_0, mat_1=mat_1)
+        figs.append(fig)
 
-    return mat
+    return mat, figs

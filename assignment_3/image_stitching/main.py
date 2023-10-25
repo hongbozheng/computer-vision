@@ -21,11 +21,15 @@ def main():
                 filepath = os.path.join(config.img_multi_dir, dir, filename)
                 filepaths.append(filepath)
 
-            mat = stitch.stitch_imgs(filepaths=filepaths)
+            mat, figs = stitch.stitch_imgs(filepaths=filepaths)
 
-            os.makedirs(name=config.res_dir, exist_ok=True)
-            res_img_path = os.path.join(config.res_dir, dir+".jpg")
+            res_path = os.path.join(config.res_dir, dir)
+            os.makedirs(name=res_path, exist_ok=True)
+            res_img_path = os.path.join(res_path, dir+".jpg")
             cv2.imwrite(filename=res_img_path, img=mat)
+            for i, fig in enumerate(figs):
+                res_img_path = os.path.join(res_path, "inliers_" + str(i) + ".png")
+                fig.savefig(res_img_path, dpi=1000)
 
             if config.imshow:
                 mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
@@ -46,11 +50,14 @@ def main():
                 filepath = os.path.join(config.img_dir, dir, filename)
                 filepaths.append(filepath)
 
-            mat = stitch.stitch_imgs(filepaths=filepaths)
+            mat, figs = stitch.stitch_imgs(filepaths=filepaths)
 
-            os.makedirs(name=config.res_dir, exist_ok=True)
-            res_img_path = os.path.join(config.res_dir, dir+".jpg")
+            res_path = os.path.join(config.res_dir, dir)
+            os.makedirs(name=res_path, exist_ok=True)
+            res_img_path = os.path.join(res_path, dir + ".jpg")
             cv2.imwrite(filename=res_img_path, img=mat)
+            res_img_path = os.path.join(res_path, "inliers.png")
+            figs[0].savefig(res_img_path, dpi=1000)
 
             if config.imshow:
                 mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
