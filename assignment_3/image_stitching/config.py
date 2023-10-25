@@ -10,7 +10,7 @@ ransac_num_iters = 1000
 ransac_thres = 1.0
 
 # test
-multi_imgs = True
+multi_imgs = False
 plt_inliner_matches = False
 imshow = False
 log_level = logger.LogLevel.info
