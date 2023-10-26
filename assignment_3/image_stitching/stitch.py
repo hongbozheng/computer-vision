@@ -40,6 +40,10 @@ def calc_residual(coords_0: numpy.ndarray, coords_1: numpy.ndarray, H: numpy.nda
     coords_1 = coords_1.T
 
     coords_0_xf = H@coords_0
+
+    if coords_0_xf[-1].any() == 0:
+        return numpy.full(shape=coords_0_xf.shape[1], fill_value=config.ransac_thres)
+
     coords_0_xf /= coords_0_xf[-1]
     coords_0_xf = coords_0_xf[:2]
     residuals = scipy.linalg.norm(a=(coords_1-coords_0_xf), axis=0)**2
