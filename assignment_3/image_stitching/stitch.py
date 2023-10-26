@@ -130,6 +130,9 @@ def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> n
     mat_merged = mat_0_warped_0 * (mat_1_warped < 3.5e-2).astype(numpy.int8) + mat_1_warped_0 * (mat_1_warped >= 3.5e-2).astype(numpy.int8)
     mat = (mat_merged*255.0).astype(dtype=numpy.uint8)
 
+    y_nz, x_nz = numpy.nonzero(a=mat.any(axis=2))
+    mat = mat[numpy.min(a=y_nz):numpy.max(a=y_nz), numpy.min(a=x_nz):numpy.max(a=x_nz)]
+
     return mat
 
 

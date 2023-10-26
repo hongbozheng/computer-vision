@@ -30,6 +30,7 @@ def main():
             for i, fig in enumerate(figs):
                 res_img_path = os.path.join(res_path, "inliers_" + str(i) + ".png")
                 fig.savefig(res_img_path, dpi=1000)
+                matplotlib.pyplot.close(fig=fig)
 
             if config.imshow:
                 mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
@@ -58,6 +59,7 @@ def main():
             cv2.imwrite(filename=res_img_path, img=mat)
             res_img_path = os.path.join(res_path, "inliers.png")
             figs[0].savefig(res_img_path, dpi=1000)
+            matplotlib.pyplot.close(fig=figs[0])
 
             if config.imshow:
                 mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
