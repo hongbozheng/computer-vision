@@ -41,7 +41,8 @@ def calc_residual(coords_0: numpy.ndarray, coords_1: numpy.ndarray, H: numpy.nda
 
     coords_0_xf = H@coords_0
 
-    if coords_0_xf[-1].any() == 0:
+    if (coords_0_xf[-1] == 0).any():
+        print("INF NAN")
         return numpy.full(shape=coords_0_xf.shape[1], fill_value=config.ransac_thres)
 
     coords_0_xf /= coords_0_xf[-1]
@@ -116,7 +117,7 @@ def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> n
     mat_1 = mat_1.astype(dtype=numpy.float64) / 255.0
 
     xf = skimage.transform.ProjectiveTransform(matrix=H)
-    h, w = mat_1.shape[:2]
+    h, w = mat_0.shape[:2]
     corners = numpy.array(object=[[0, 0], [0, h], [w, 0], [h, w]], dtype=numpy.int64)
     corners_warped = xf(coords=corners)
 
@@ -127,12 +128,21 @@ def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> n
     output_shape = numpy.ceil((corner_max - corner_min)[::-1])
 
     offset = skimage.transform.SimilarityTransform(translation=-corner_min)
-    mat_1_warped = skimage.transform.warp(image=mat_1, inverse_map=(xf+offset).inverse, output_shape=output_shape, cval=-1)
-    mat_0_warped_0 = skimage.transform.warp(image=mat_0, inverse_map=offset.inverse, output_shape=output_shape, cval=0)
-    mat_1_warped_0 = skimage.transform.warp(image=mat_1, inverse_map=(xf+offset).inverse, output_shape=output_shape, cval=0)
+    mat_0_warped = skimage.transform.warp(image=mat_0, inverse_map=(xf+offset).inverse, output_shape=output_shape, cval=-1)
+    mat_0_warped_0 = skimage.transform.warp(image=mat_0, inverse_map=(xf+offset).inverse, output_shape=output_shape, cval=0)
+    mat_1_warped_0 = skimage.transform.warp(image=mat_1, inverse_map=offset.inverse, output_shape=output_shape, cval=0)
 
-    mat_merged = mat_0_warped_0 * (mat_1_warped < 3.5e-2).astype(numpy.int8) + mat_1_warped_0 * (mat_1_warped >= 3.5e-2).astype(numpy.int8)
+    mat_merged = mat_1_warped_0 * (mat_0_warped < 3.5e-2).astype(numpy.int8) + mat_0_warped_0 * (mat_0_warped >= 3.5e-2).astype(numpy.int8)
     mat = (mat_merged*255.0).astype(dtype=numpy.uint8)
+
+    # mat = cv2.warpPerspective(src=mat_0, M=H, dsize=(mat_0.shape[1], mat_0.shape[0]))
+    #
+    # mat_0_mask = (mat != 0).any(axis=-1)
+    # mat_1_mask = (mat_1 != 0).any(axis=-1)
+    # overlap_mask = mat_0_mask & mat_1_mask
+    # mat_1_mask[overlap_mask] = False
+    #
+    # mat[mat_1_mask] = mat_1[mat_1_mask]
 
     y_nz, x_nz = numpy.nonzero(a=mat.any(axis=2))
     mat = mat[numpy.min(a=y_nz):numpy.max(a=y_nz), numpy.min(a=x_nz):numpy.max(a=x_nz)]
@@ -140,7 +150,23 @@ def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> n
     return mat
 
 
-def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray) -> tuple[numpy.ndarray, matplotlib.figure.Figure]:
+def create_canvas(mat: numpy.ndarray, height: int, width: int) -> numpy.ndarray:
+    h, w, _ = mat.shape
+    pad_h = height - h
+    pad_w = width- w
+    top = pad_h // 2
+    btm = pad_h - top
+    left = pad_w // 2
+    right = pad_w - left
+    mat = cv2.copyMakeBorder(src=mat, top=top, bottom=btm, left=left, right=right, borderType=cv2.BORDER_CONSTANT, value=(0, 0, 0))
+
+    return mat
+
+
+def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, canvas_h: int, canvas_w: int) -> tuple[numpy.ndarray, matplotlib.figure.Figure]:
+    # mat_0 = create_canvas(mat=mat_0, height=canvas_h, width=canvas_w)
+    # mat_1 = create_canvas(mat=mat_1, height=canvas_h, width=canvas_w)
+
     mat_0_gray = cv2.cvtColor(src=mat_0, code=cv2.COLOR_BGR2GRAY)
     mat_1_gray = cv2.cvtColor(src=mat_1, code=cv2.COLOR_BGR2GRAY)
 
@@ -164,7 +190,7 @@ def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray) -> tuple[numpy.nda
     H, inliners, avg_res = ransac(coords_0=coords_0, coords_1=coords_1, num_iters=config.ransac_num_iters,
                                   thres=config.ransac_thres)
 
-    mat = warp_imgs(mat_0=mat_1, mat_1=mat_0, H=H)
+    mat = warp_imgs(mat_0=mat_0, mat_1=mat_1, H=H)
 
     mat_0 = cv2.cvtColor(src=mat_0, code=cv2.COLOR_BGR2RGB)
     mat_1 = cv2.cvtColor(src=mat_1, code=cv2.COLOR_BGR2RGB)
@@ -180,7 +206,7 @@ def stitch_imgs(filepaths: list) -> tuple[numpy.ndarray, list[matplotlib.figure.
         mat = cv2.imread(filename=filepaths[0])
         for filepath in filepaths[1:]:
             mat_0 = cv2.imread(filename=filepath)
-            mat, fig = stitch_2_imgs(mat_0=mat, mat_1=mat_0)
+            mat, fig = stitch_2_imgs(mat_0=mat, mat_1=mat_0, canvas_h=1500, canvas_w=3000)
             figs.append(fig)
     else:
         filepath_0 = filepaths[0]
@@ -188,7 +214,7 @@ def stitch_imgs(filepaths: list) -> tuple[numpy.ndarray, list[matplotlib.figure.
         mat_0 = cv2.imread(filename=filepath_0)
         mat_1 = cv2.imread(filename=filepath_1)
 
-        mat, fig = stitch_2_imgs(mat_0=mat_0, mat_1=mat_1)
+        mat, fig = stitch_2_imgs(mat_0=mat_0, mat_1=mat_1, canvas_h=1500, canvas_w=3000)
         figs.append(fig)
 
     return mat, figs
