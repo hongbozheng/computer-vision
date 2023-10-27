@@ -113,36 +113,36 @@ def ransac(
 
 
 def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> numpy.ndarray:
-    mat_0 = mat_0.astype(dtype=numpy.float64) / 255.0
-    mat_1 = mat_1.astype(dtype=numpy.float64) / 255.0
-
-    xf = skimage.transform.ProjectiveTransform(matrix=H)
-    h, w = mat_0.shape[:2]
-    corners = numpy.array(object=[[0, 0], [0, h], [w, 0], [h, w]], dtype=numpy.int64)
-    corners_warped = xf(coords=corners)
-
-    corners = numpy.vstack(tup=(corners_warped, corners))
-    corner_min = numpy.min(a=corners, axis=0)
-    corner_max = numpy.max(a=corners, axis=0)
-
-    output_shape = numpy.ceil((corner_max - corner_min)[::-1])
-
-    offset = skimage.transform.SimilarityTransform(translation=-corner_min)
-    mat_0_warped = skimage.transform.warp(image=mat_0, inverse_map=(xf+offset).inverse, output_shape=output_shape, cval=-1)
-    mat_0_warped_0 = skimage.transform.warp(image=mat_0, inverse_map=(xf+offset).inverse, output_shape=output_shape, cval=0)
-    mat_1_warped_0 = skimage.transform.warp(image=mat_1, inverse_map=offset.inverse, output_shape=output_shape, cval=0)
-
-    mat_merged = mat_1_warped_0 * (mat_0_warped < 3.5e-2).astype(numpy.int8) + mat_0_warped_0 * (mat_0_warped >= 3.5e-2).astype(numpy.int8)
-    mat = (mat_merged*255.0).astype(dtype=numpy.uint8)
-
-    # mat = cv2.warpPerspective(src=mat_0, M=H, dsize=(mat_0.shape[1], mat_0.shape[0]))
+    # mat_0 = mat_0.astype(dtype=numpy.float64) / 255.0
+    # mat_1 = mat_1.astype(dtype=numpy.float64) / 255.0
     #
-    # mat_0_mask = (mat != 0).any(axis=-1)
-    # mat_1_mask = (mat_1 != 0).any(axis=-1)
-    # overlap_mask = mat_0_mask & mat_1_mask
-    # mat_1_mask[overlap_mask] = False
+    # xf = skimage.transform.ProjectiveTransform(matrix=H)
+    # h, w = mat_0.shape[:2]
+    # corners = numpy.array(object=[[0, 0], [0, h], [w, 0], [h, w]], dtype=numpy.int64)
+    # corners_xf = xf(coords=corners)
     #
-    # mat[mat_1_mask] = mat_1[mat_1_mask]
+    # corners = numpy.vstack(tup=(corners_xf, corners))
+    # corner_min = numpy.min(a=corners, axis=0)
+    # corner_max = numpy.max(a=corners, axis=0)
+    #
+    # output_shape = numpy.ceil((corner_max - corner_min)[::-1])
+    #
+    # offset = skimage.transform.SimilarityTransform(translation=-corner_min)
+    # mat_0_warped = skimage.transform.warp(image=mat_0, inverse_map=(xf+offset).inverse, output_shape=output_shape, cval=-1)
+    # mat_0_warped_0 = skimage.transform.warp(image=mat_0, inverse_map=(xf+offset).inverse, output_shape=output_shape, cval=0)
+    # mat_1_warped_0 = skimage.transform.warp(image=mat_1, inverse_map=offset.inverse, output_shape=output_shape, cval=0)
+    #
+    # mat = mat_1_warped_0 * (mat_0_warped < 3.5e-2).astype(numpy.int8) + mat_0_warped_0 * (mat_0_warped >= 3.5e-2).astype(numpy.int8)
+    # mat = (mat*255.0).astype(dtype=numpy.uint8)
+
+    mat = cv2.warpPerspective(src=mat_0, M=H, dsize=(mat_0.shape[1], mat_0.shape[0]))
+
+    mat_0_mask = (mat != 0).any(axis=-1)
+    mat_1_mask = (mat_1 != 0).any(axis=-1)
+    overlap_mask = mat_0_mask & mat_1_mask
+    mat_1_mask[overlap_mask] = False
+
+    mat[mat_1_mask] = mat_1[mat_1_mask]
 
     y_nz, x_nz = numpy.nonzero(a=mat.any(axis=2))
     mat = mat[numpy.min(a=y_nz):numpy.max(a=y_nz), numpy.min(a=x_nz):numpy.max(a=x_nz)]
@@ -164,8 +164,8 @@ def create_canvas(mat: numpy.ndarray, height: int, width: int) -> numpy.ndarray:
 
 
 def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, canvas_h: int, canvas_w: int) -> tuple[numpy.ndarray, matplotlib.figure.Figure]:
-    # mat_0 = create_canvas(mat=mat_0, height=canvas_h, width=canvas_w)
-    # mat_1 = create_canvas(mat=mat_1, height=canvas_h, width=canvas_w)
+    mat_0 = create_canvas(mat=mat_0, height=canvas_h, width=canvas_w)
+    mat_1 = create_canvas(mat=mat_1, height=canvas_h, width=canvas_w)
 
     mat_0_gray = cv2.cvtColor(src=mat_0, code=cv2.COLOR_BGR2GRAY)
     mat_1_gray = cv2.cvtColor(src=mat_1, code=cv2.COLOR_BGR2GRAY)
