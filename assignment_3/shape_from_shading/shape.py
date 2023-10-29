@@ -11,6 +11,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from PIL import Image
+import logger
 
 #####################################
 ### Provided functions start here ###
@@ -18,7 +19,7 @@ from PIL import Image
 
 # Image loading and saving
 
-def LoadFaceImages(class_dir, class_name, num_images):
+def LoadFaceImages(subject_dir, subject_name, num_images):
     """
     Load the set of face images.
     The routine returns
@@ -41,8 +42,8 @@ def LoadFaceImages(class_dir, class_name, num_images):
         z = r * np.sin(el)
         return x, y, z
 
-    ambimage = load_image(os.path.join(class_dir, class_name + '_P00_Ambient.pgm'))
-    im_list = glob.glob(os.path.join(class_dir, class_name + '_P00A*.pgm'))
+    ambimage = load_image(os.path.join(subject_dir, subject_name + '_P00_Ambient.pgm'))
+    im_list = glob.glob(os.path.join(subject_dir, subject_name + '_P00A*.pgm'))
     if num_images <= len(im_list):
         im_sub_list = np.random.choice(im_list, num_images, replace=False)
     else:
@@ -163,12 +164,6 @@ def preprocess(ambimage, imarray):
     processed_imarray = numpy.clip(a=processed_imarray, a_min=0, a_max=255)
     processed_imarray /= 255.0
 
-    # processed_imarray = processed_imarray.transpose(2, 0, 1)
-    # print(processed_imarray.shape)
-    # for im in processed_imarray[:10]:
-    #     matplotlib.pyplot.imshow(im)
-    #     matplotlib.pyplot.show()
-
     return processed_imarray
 
 
@@ -208,7 +203,7 @@ def get_surface(surface_normals, integration_method):
         height_map: h x w
     """
 
-    if integration_method not in ["average", "column", "row", "random"]:
+    if integration_method not in {"average", "column", "row", "random"}:
         print("[ERROR]: Invalid integration method")
         exit()
 
@@ -224,23 +219,45 @@ def get_surface(surface_normals, integration_method):
     elif integration_method == "column":
         height_map = numpy.cumsum(a=fx, axis=1) + numpy.reshape(a=numpy.cumsum(a=fy, axis=0)[:, 0], newshape=(-1, 1))
     elif integration_method == "random":
-        pass
+        h, w, _ = surface_normals.shape
+        height_map = numpy.zeros(shape=(h, w))
+
+        for y in range(h):
+            for x in range(w):
+                if x == 0 and y == 0:
+                    continue
+
+                for i in range(config.num_paths):
+                    zeros = numpy.zeros(shape=x)
+                    ones = numpy.ones(shape=y)
+                    path = numpy.concatenate((zeros, ones))
+                    numpy.random.shuffle(path)
+
+                    x_steps = 0
+                    y_steps = 0
+                    idx = 0
+                    cumsum = 0
+
+                    while x_steps < x or y_steps < y:
+                        if path[idx] == 0:
+                            cumsum += fx[y_steps, x_steps]
+                            x_steps += 1
+                        elif path[idx] == 1:
+                            cumsum += fy[y_steps, x_steps]
+                            y_steps += 1
+                        idx += 1
+
+                    height_map[y, x] += cumsum
+
+        height_map /= config.num_paths
 
     return height_map
 
 
-def recover_surface(class_dir: str) -> tuple[numpy.ndarray, numpy.ndarray]:
-    _, class_name = os.path.split(p=class_dir)
-    ambient_image, imarray, light_dirs = LoadFaceImages(class_dir=class_dir, class_name=class_name, num_images=64)
-
+def recover_surface(subject_dir: str) -> tuple[numpy.ndarray, numpy.ndarray]:
+    _, subject_name = os.path.split(p=subject_dir)
+    ambient_image, imarray, light_dirs = LoadFaceImages(subject_dir=subject_dir, subject_name=subject_name, num_images=64)
     processed_imarray = preprocess(ambimage=ambient_image, imarray=imarray)
-
     albedo_image, surface_normals = photometric_stereo(imarray=processed_imarray, light_dirs=light_dirs)
-
-    height_map = get_surface(surface_normals=surface_normals, integration_method="average")
-
-    if config.imshow:
-        plot_surface_normals(surface_normals=surface_normals)
-        display_output(albedo_image=albedo_image, height_map=height_map)
 
     return albedo_image, surface_normals
