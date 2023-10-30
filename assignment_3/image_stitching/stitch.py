@@ -1,5 +1,6 @@
 import config
 import cv2
+import logger
 import matplotlib.axes
 import matplotlib.figure
 import matplotlib.pyplot
@@ -42,7 +43,6 @@ def calc_residual(coords_0: numpy.ndarray, coords_1: numpy.ndarray, H: numpy.nda
     coords_0_xf = H@coords_0
 
     if (coords_0_xf[-1] == 0).any():
-        print("INF NAN")
         return numpy.full(shape=coords_0_xf.shape[1], fill_value=config.ransac_thres)
 
     coords_0_xf /= coords_0_xf[-1]
@@ -107,7 +107,10 @@ def ransac(
             coords_1_inliners = coords_1[indices]
             inliners = numpy.concatenate((coords_0_inliners, coords_1_inliners), axis=1)
             inliners_best = numpy.copy(a=inliners)
-            avg_res = numpy.sum(a=residuals) / inliners.shape[0]
+            avg_res = numpy.sum(a=residuals[indices]) / inliners.shape[0]
+
+    logger.log_info("Num of inliners:  %d" % inliners.shape[0])
+    logger.log_info("Average residual: %f" % avg_res)
 
     return H_best, inliners_best, avg_res
 
