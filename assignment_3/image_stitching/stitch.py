@@ -139,6 +139,10 @@ def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> n
     # mat = (mat*255.0).astype(dtype=numpy.uint8)
 
     mat = cv2.warpPerspective(src=mat_0, M=H, dsize=(mat_0.shape[1], mat_0.shape[0]))
+    border_mask = cv2.threshold(mat, thresh=0, maxval=255, type=cv2.THRESH_BINARY)[1]
+    kernel = cv2.getStructuringElement(shape=cv2.MORPH_ELLIPSE, ksize=(5, 5))
+    border_mask = cv2.morphologyEx(src=border_mask, op=cv2.MORPH_ERODE, kernel=kernel)
+    mat[border_mask == 0] = 0
 
     mat_0_mask = (mat != 0).any(axis=-1)
     mat_1_mask = (mat_1 != 0).any(axis=-1)
