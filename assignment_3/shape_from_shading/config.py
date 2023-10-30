@@ -4,6 +4,10 @@ import logger
 img_dir = "croppedyale"
 res_dir = "results"
 
+# filter image
+pixel_val_thres = 50
+dark_pixel_ratio_thres = 0.75
+
 # height map
 integration_methods = {"average", "column", "row", "random"}
 

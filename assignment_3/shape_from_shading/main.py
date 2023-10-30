@@ -9,7 +9,7 @@ import shape
 
 def main():
     dirs = os.listdir(path=config.img_dir)
-    dirs = ["yaleB07"]
+
     for dir in dirs:
         logger.log_info("Start processing %s" % dir)
         subject_dir = os.path.join(config.img_dir, dir)

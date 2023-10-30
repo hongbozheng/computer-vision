@@ -1,24 +1,15 @@
 import config
-import os
-import sys
 import glob
-import re
-import scipy
-
-import numpy
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from PIL import Image
 import logger
+import matplotlib.pyplot
+import numpy
+import os
+import PIL.Image
+import scipy
+import time
 
-#####################################
-### Provided functions start here ###
-#####################################
 
 # Image loading and saving
-
 def LoadFaceImages(subject_dir, subject_name, num_images):
     """
     Load the set of face images.
@@ -29,49 +20,60 @@ def LoadFaceImages(subject_dir, subject_name, num_images):
     """
 
     def load_image(fname):
-        return np.asarray(Image.open(fname))
+        return numpy.asarray(PIL.Image.open(fname))
 
     def fname_to_ang(fname):
         yale_name = os.path.basename(fname)
         return int(yale_name[12:16]), int(yale_name[17:20])
 
     def sph2cart(az, el, r):
-        rcos_theta = r * np.cos(el)
-        x = rcos_theta * np.cos(az)
-        y = rcos_theta * np.sin(az)
-        z = r * np.sin(el)
+        rcos_theta = r * numpy.cos(el)
+        x = rcos_theta * numpy.cos(az)
+        y = rcos_theta * numpy.sin(az)
+        z = r * numpy.sin(el)
         return x, y, z
 
     ambimage = load_image(os.path.join(subject_dir, subject_name + '_P00_Ambient.pgm'))
     im_list = glob.glob(os.path.join(subject_dir, subject_name + '_P00A*.pgm'))
-    if num_images <= len(im_list):
-        im_sub_list = np.random.choice(im_list, num_images, replace=False)
-    else:
-        print('Total available images is less than specified.\nProceeding with %d images.\n' % len(im_list))
-        im_sub_list = im_list
-    im_sub_list.sort()
-    imarray = np.stack([load_image(fname) for fname in im_sub_list], axis=-1)
-    Ang = np.array([fname_to_ang(fname) for fname in im_sub_list])
 
-    x, y, z = sph2cart(Ang[:, 0] / 180.0 * np.pi, Ang[:, 1] / 180.0 * np.pi, 1)
-    lightdirs = np.stack([y, z, x], axis=-1)
+    im_list_filtered = []
+    for fname in im_list:
+        mat = load_image(fname=fname)
+        num_dark_pixels = numpy.where(mat <= config.pixel_val_thres)[0].shape[0]
+        dark_pixel_ratio = num_dark_pixels/mat.size
+
+        if dark_pixel_ratio <= config.dark_pixel_ratio_thres:
+            im_list_filtered.append(fname)
+
+    # if num_images <= len(im_list):
+    #     im_sub_list = numpy.random.choice(im_list, num_images, replace=False)
+    # else:
+    #     print('Total available images is less than specified.\nProceeding with %d images.\n' % len(im_list))
+    #     im_sub_list = im_list
+
+    im_sub_list = im_list_filtered
+    im_sub_list.sort()
+    imarray = numpy.stack([load_image(fname) for fname in im_sub_list], axis=-1)
+    Ang = numpy.array([fname_to_ang(fname) for fname in im_sub_list])
+
+    x, y, z = sph2cart(Ang[:, 0] / 180.0 * numpy.pi, Ang[:, 1] / 180.0 * numpy.pi, 1)
+    lightdirs = numpy.stack([y, z, x], axis=-1)
 
     return ambimage, imarray, lightdirs
 
 
 def save_outputs(subject_name, albedo_image, surface_normals):
-    im = Image.fromarray((albedo_image * 255).astype(np.uint8))
+    im = PIL.Image.fromarray((albedo_image * 255).astype(numpy.uint8))
     im.save("%s_albedo.jpg" % subject_name)
-    im = Image.fromarray((surface_normals[:, :, 0] * 128 + 128).astype(np.uint8))
+    im = PIL.Image.fromarray((surface_normals[:, :, 0] * 128 + 128).astype(numpy.uint8))
     im.save("%s_normals_x.jpg" % subject_name)
-    im = Image.fromarray((surface_normals[:, :, 1] * 128 + 128).astype(np.uint8))
+    im = PIL.Image.fromarray((surface_normals[:, :, 1] * 128 + 128).astype(numpy.uint8))
     im.save("%s_normals_y.jpg" % subject_name)
-    im = Image.fromarray((surface_normals[:, :, 2] * 128 + 128).astype(np.uint8))
+    im = PIL.Image.fromarray((surface_normals[:, :, 2] * 128 + 128).astype(numpy.uint8))
     im.save("%s_normals_z.jpg" % subject_name)
 
 
 # Plot the height map
-
 def set_aspect_equal_3d(ax):
     """https://stackoverflow.com/questions/13685386"""
     """Fix equal aspect bug for 3D plots."""
@@ -94,19 +96,19 @@ def set_aspect_equal_3d(ax):
 
 
 def display_output(albedo_image, height_map):
-    fig = plt.figure()
-    plt.imshow(albedo_image, cmap='gray')
-    plt.axis('off')
+    fig = matplotlib.pyplot.figure()
+    matplotlib.pyplot.imshow(albedo_image, cmap='gray')
+    matplotlib.pyplot.axis('off')
 
-    fig = plt.figure(figsize=(10, 10))
+    fig = matplotlib.pyplot.figure(figsize=(10, 10))
     ax = fig.add_subplot(projection='3d')
     ax.view_init(20, 20)
-    X = np.arange(albedo_image.shape[0])
-    Y = np.arange(albedo_image.shape[1])
-    X, Y = np.meshgrid(Y, X)
-    H = np.flipud(np.fliplr(height_map))
-    A = np.flipud(np.fliplr(albedo_image))
-    A = np.stack([A, A, A], axis=-1)
+    X = numpy.arange(albedo_image.shape[0])
+    Y = numpy.arange(albedo_image.shape[1])
+    X, Y = numpy.meshgrid(Y, X)
+    H = numpy.flipud(numpy.fliplr(height_map))
+    A = numpy.flipud(numpy.fliplr(albedo_image))
+    A = numpy.stack([A, A, A], axis=-1)
     ax.xaxis.set_ticks([])
     ax.xaxis.set_label_text('Z')
     ax.yaxis.set_ticks([])
@@ -119,31 +121,26 @@ def display_output(albedo_image, height_map):
 
 
 # Plot the surface normals
-
 def plot_surface_normals(surface_normals):
     """
     surface_normals: h x w x 3 matrix.
     """
 
-    fig = plt.figure()
-    ax = plt.subplot(1, 3, 1)
+    fig = matplotlib.pyplot.figure()
+    ax = matplotlib.pyplot.subplot(1, 3, 1)
     ax.axis('off')
     ax.set_title('X')
     im = ax.imshow(surface_normals[:, :, 0])
-    ax = plt.subplot(1, 3, 2)
+    ax = matplotlib.pyplot.subplot(1, 3, 2)
     ax.axis('off')
     ax.set_title('Y')
     im = ax.imshow(surface_normals[:, :, 1])
-    ax = plt.subplot(1, 3, 3)
+    ax = matplotlib.pyplot.subplot(1, 3, 3)
     ax.axis('off')
     ax.set_title('Z')
     im = ax.imshow(surface_normals[:, :, 2])
     matplotlib.pyplot.show()
 
-
-#######################################
-### Your implementation starts here ###
-#######################################
 
 def preprocess(ambimage, imarray):
     """
@@ -186,10 +183,6 @@ def photometric_stereo(imarray, light_dirs):
 
     albedo_image = scipy.linalg.norm(a=g, axis=2)
     surface_normals = g/albedo_image[:, :, numpy.newaxis]
-    # surface_normals = surface_normals.transpose(2, 0, 1)
-    # for sn in surface_normals[:10]:
-    #     matplotlib.pyplot.imshow(sn)
-    #     matplotlib.pyplot.show()
 
     return albedo_image, surface_normals
 
@@ -206,6 +199,8 @@ def get_surface(surface_normals, integration_method):
     if integration_method not in {"average", "column", "row", "random"}:
         print("[ERROR]: Invalid integration method")
         exit()
+
+    start_time = time.time()
 
     fx = surface_normals[:, :, 0]/surface_normals[:, :, 2]
     fy = surface_normals[:, :, 1]/surface_normals[:, :, 2]
@@ -248,8 +243,10 @@ def get_surface(surface_normals, integration_method):
                         idx += 1
 
                     height_map[y, x] += cumsum
+                height_map[y, x] /= config.num_paths
 
-        height_map /= config.num_paths
+    end_time = time.time()
+    logger.log_info("Construct height map: %ss" % str(end_time-start_time))
 
     return height_map
 
