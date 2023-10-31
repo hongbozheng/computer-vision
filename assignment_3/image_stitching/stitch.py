@@ -6,6 +6,7 @@ import matplotlib.figure
 import matplotlib.pyplot
 import numpy
 import scipy
+import skimage.exposure
 import skimage.transform
 
 
@@ -139,18 +140,23 @@ def warp_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, H: numpy.ndarray) -> n
     # mat = (mat*255.0).astype(dtype=numpy.uint8)
 
     mat = cv2.warpPerspective(src=mat_0, M=H, dsize=(mat_0.shape[1], mat_0.shape[0]))
+
     # Reference: https://stackoverflow.com/questions/68565531/remove-black-dashed-lines-from-image-stitching
     border_mask = cv2.threshold(mat, thresh=0, maxval=255, type=cv2.THRESH_BINARY)[1]
     kernel = cv2.getStructuringElement(shape=cv2.MORPH_ELLIPSE, ksize=(5, 5))
     border_mask = cv2.morphologyEx(src=border_mask, op=cv2.MORPH_ERODE, kernel=kernel)
     mat[border_mask == 0] = 0
+    border_mask = cv2.blur(src=border_mask, ksize=(5, 5))
+    border_mask = skimage.exposure.rescale_intensity(image=border_mask, in_range=(127.5, 255), out_range=(0, 255)).astype(dtype=numpy.float64)
+    mat = (mat * border_mask + mat_1 * (255 - border_mask)) / 255
+    mat = mat.clip(min=0, max=255).astype(dtype=numpy.uint8)
 
-    mat_0_mask = (mat != 0).any(axis=-1)
-    mat_1_mask = (mat_1 != 0).any(axis=-1)
-    overlap_mask = mat_0_mask & mat_1_mask
-    mat_1_mask[overlap_mask] = False
-
-    mat[mat_1_mask] = mat_1[mat_1_mask]
+    # mat_0_mask = (mat != 0).any(axis=-1)
+    # mat_1_mask = (mat_1 != 0).any(axis=-1)
+    # overlap_mask = mat_0_mask & mat_1_mask
+    # mat_1_mask[overlap_mask] = False
+    #
+    # mat[mat_1_mask] = mat_1[mat_1_mask]
 
     y_nz, x_nz = numpy.nonzero(a=mat.any(axis=2))
     mat = mat[numpy.min(a=y_nz):numpy.max(a=y_nz), numpy.min(a=x_nz):numpy.max(a=x_nz)]
