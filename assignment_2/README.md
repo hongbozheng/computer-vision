@@ -2,7 +2,7 @@
 ##### Instructor: D.A. Forsyth
 Deadline --- Monday, October 9th, 11:59:59 PM
 
-#### Part 1 - [Fourier-based color channel alignment](https://gitlab.engr.illinois.edu/hongboz2/computer_vision/-/tree/main/assignment_2/fourier-based_color_channel_alignment)
+#### Part 1 - [Fourier-based Color Channel Alignment](https://gitlab.engr.illinois.edu/hongboz2/computer_vision/-/tree/main/assignment_2/fourier-based_color_channel_alignment)
 
 For the first part of this assignment, we will revisit the color channel alignment that you performed in Assignment 1.
 The goal in this assignment is to perform color channel alignment using the Fourier transform. As I said in lecture
@@ -11,7 +11,7 @@ Further, the Fast Fourier Transform algorithm computes a transform in O(N M log 
 As a result, Fourier-based alignment may provide an efficient alternative to sliding window alignment approaches for
 high-resolution images.
 
-#### Part 2 - [Scale-space blob construction](https://gitlab.engr.illinois.edu/hongboz2/computer_vision/-/tree/main/assignment_2/scale-space_blob_construction)
+#### Part 2 - [Scale-space Blob Construction](https://gitlab.engr.illinois.edu/hongboz2/computer_vision/-/tree/main/assignment_2/scale-space_blob_construction)
 
 The goal of Part 2 of the assignment is to build a blob coordinate system as discussed in lecture (and slides, and notes!).
 
