@@ -1,6 +1,7 @@
 .DS_Store
+*.zip
 .idea
 __pycache__/
-*.zip
+.ipynb_checkpoints/
 assignment_2/fourier-based_color_channel_alignment/data
 assignment_2/fourier-based_color_channel_alignment/data_hires
