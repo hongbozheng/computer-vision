@@ -35,42 +35,42 @@ class LogLevel(enum.Enum):
 
 def log_trace(*args, **kwargs):
     if config.log_level >= LogLevel.trace:
-        print("[TRACE]: ", end = "")
+        print("[TRACE]: ", end="")
         print(*args, **kwargs)
     return
 
 
 def log_debug(*args, **kwargs):
     if config.log_level >= LogLevel.debug:
-        print("[DEBUG]: ", end = "")
+        print("[DEBUG]: ", end="")
         print(*args, **kwargs)
     return
 
 
 def log_info(*args, **kwargs):
     if config.log_level >= LogLevel.info:
-        print("[INFO]: ", end = "")
+        print("[INFO]: ", end="")
         print(*args, **kwargs)
     return
 
 
 def log_warn(*args, **kwargs):
     if config.log_level >= LogLevel.warn:
-        print("[WARN]: ", end = "")
+        print("[WARN]: ", end="")
         print(*args, **kwargs)
     return
 
 
 def log_error(*args, **kwargs):
     if config.log_level >= LogLevel.error:
-        print("[ERROR]: ", end = "")
+        print("[ERROR]: ", end="")
         print(*args, **kwargs)
     return
 
 
 def log_fatal(*args, **kwargs):
     if config.log_level >= LogLevel.fatal:
-        print("[FATAL]: ", end = "")
+        print("[FATAL]: ", end="")
         print(*args, **kwargs)
     return
 
