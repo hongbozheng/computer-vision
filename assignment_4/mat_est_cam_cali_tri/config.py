@@ -17,12 +17,18 @@ res_dir = "results"
 
 
 # ransac
-dist_thres = 1.0e4
-ransac_num_iters = 10000
-ransac_thres = 0.75
+# gaudi ransac hyperparameters
+# dist_thres = 1.38e4
+# ransac_num_iters = 50000
+# ransac_thres = 1.0
+
+# house ransac hyperparameters
+# dist_thres = 3.5e4
+# ransac_num_iters = 50000
+# ransac_thres = 0.75
 
 
 # test
 plt_inliner_matches = True
-imwrite = False
+imwrite = True
 log_level = logger.LogLevel.info
