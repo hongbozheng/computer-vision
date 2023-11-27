@@ -199,7 +199,7 @@ def stitch_2_imgs(mat_0: numpy.ndarray, mat_1: numpy.ndarray, canvas_h: int, can
         coords_1.append(kp_1[c_idx].pt)
 
     coords_0 = numpy.row_stack(tup=coords_0, dtype=numpy.float64)
-    coords_1 = numpy.row_stack(tup=coords_1, dtype=numpy.float32)
+    coords_1 = numpy.row_stack(tup=coords_1, dtype=numpy.float64)
 
     H, inliners, avg_res = ransac(coords_0=coords_0, coords_1=coords_1, num_iters=config.ransac_num_iters,
                                   thres=config.ransac_thres)
