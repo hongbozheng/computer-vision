@@ -8,6 +8,7 @@ import numpy
 import os
 import PIL.Image
 import scipy.linalg
+from ransac import *
 
 
 def normalize(coords: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]:
@@ -173,7 +174,6 @@ def main():
     filepaths = config.filepaths[dir]
     img_filepath_0 = filepaths[0]
     img_filepath_1 = filepaths[1]
-    matches_filepath = filepaths[2]
     norm = args.normalized
 
     # load images and match files for the first example
@@ -181,26 +181,44 @@ def main():
     mat_0 = numpy.asarray(a=img_0, dtype=numpy.uint8)
     img_1 = PIL.Image.open(fp=img_filepath_1)
     mat_1 = numpy.asarray(a=img_1, dtype=numpy.uint8)
-    matches = numpy.loadtxt(fname=matches_filepath)
 
-    fig = plt_matches(matches=matches, mat_0=mat_0, mat_1=mat_1)
-
-    res_dir = os.path.join(config.res_dir, dir)
-    if not os.path.exists(path=res_dir):
-        os.makedirs(name=res_dir, exist_ok=True)
-
-    if config.imwrite:
-        fig.savefig(fname=os.path.join(res_dir, "matches.jpg"), dpi=1000, format="jpg", bbox_inches="tight")
-
-    F = fit_fundamental(matches=matches, norm=norm)
-
-    fig = plt_epipolar(matches=matches, norm=norm, F=F, mat=mat_1)
-
-    if config.imwrite:
-        if norm:
-            fig.savefig(fname=os.path.join(res_dir, "epipolar_norm.jpg"), dpi=1000, format="jpg", bbox_inches="tight")
+    if dir == "lab" or dir == "lib":
+        if dir == "lab":
+            logger.log_info("Processing lab images")
         else:
-            fig.savefig(fname=os.path.join(res_dir, "epipolar.jpg"), dpi=1000, format="jpg", bbox_inches="tight")
+            logger.log_info("Processing library images")
+        matches_filepath = filepaths[2]
+        matches = numpy.loadtxt(fname=matches_filepath)
+
+        fig = plt_matches(matches=matches, mat_0=mat_0, mat_1=mat_1)
+
+        res_dir = os.path.join(config.res_dir, dir)
+        if not os.path.exists(path=res_dir):
+            os.makedirs(name=res_dir, exist_ok=True)
+
+        if config.imwrite:
+            fig.savefig(fname=os.path.join(res_dir, "matches.jpg"), dpi=1000, format="jpg", bbox_inches="tight")
+
+        F = fit_fundamental(matches=matches, norm=norm)
+
+        fig = plt_epipolar(matches=matches, norm=norm, F=F, mat=mat_1)
+
+        if config.imwrite:
+            if norm:
+                fig.savefig(fname=os.path.join(res_dir, "epipolar_norm.jpg"), dpi=1000, format="jpg", bbox_inches="tight")
+            else:
+                fig.savefig(fname=os.path.join(res_dir, "epipolar.jpg"), dpi=1000, format="jpg", bbox_inches="tight")
+    elif dir == "gaudi" or dir == "house":
+        logger.log_info(f"Processing {dir} images")
+        coords_0, coords_1 = comp_matches(mat_0=mat_0, mat_1=mat_1)
+        logger.log_info("Performing ransac")
+        H, inliners, avg_res = ransac(coords_0=coords_0, coords_1=coords_1, num_iters=config.ransac_num_iters,
+                                      thres=config.ransac_thres)
+        fig = plt_inlier_matches(mat_0=mat_0, mat_1=mat_1, inliers=inliners, avg_res=avg_res)
+        print(inliners)
+
+        F = fit_fundamental(matches=inliners, norm=norm)
+        fig = plt_epipolar(matches=inliners, norm=norm, F=F, mat=mat_1)
 
     return
 

@@ -15,6 +15,14 @@ filepaths = {"lab": [f"{lab_dir}/lab1.jpg", f"{lab_dir}/lab2.jpg", f"{lab_dir}/l
              "house": [f"{house_dir}/house1.jpg", f"{house_dir}/house2.jpg"]}
 res_dir = "results"
 
+
+# ransac
+dist_thres = 1.0e4
+ransac_num_iters = 10000
+ransac_thres = 0.75
+
+
 # test
+plt_inliner_matches = True
 imwrite = False
 log_level = logger.LogLevel.info
