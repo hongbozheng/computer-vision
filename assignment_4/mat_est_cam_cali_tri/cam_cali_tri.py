@@ -104,9 +104,9 @@ def calc_resid(
         pts_2d_xf.append(x_1_x_2)
 
     pts_2d_xf = numpy.vstack(tup=pts_2d_xf, dtype=numpy.float64)
-    loss = numpy.abs(pts_2d_xf-pts_2d)
-    avg_resid = numpy.mean(a=loss)
-    resid = numpy.sum(a=loss)
+    loss = numpy.abs((pts_2d_xf-pts_2d), dtype=numpy.float64)
+    avg_resid = numpy.mean(a=loss, dtype=numpy.float64)
+    resid = numpy.sum(a=loss, dtype=numpy.float64)
 
     return avg_resid, resid
 
