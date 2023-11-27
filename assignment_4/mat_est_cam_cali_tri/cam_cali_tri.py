@@ -83,8 +83,25 @@ def triangulation(M_1: numpy.ndarray, M_2: numpy.ndarray, pts_2d: numpy.ndarray)
     return pts_3d
 
 
-def calc_resid() -> float:
-    return
+def calc_resid(M_1: numpy.ndarray, M_2: numpy.ndarray, pts_3d: numpy.ndarray, pts_2d: numpy.ndarray) -> float:
+    N = pts_3d.shape[0]
+    ones = numpy.ones(shape=(N, 1), dtype=numpy.float64)
+    pts_3d = numpy.hstack(tup=(pts_3d, ones), dtype=numpy.float64)
+
+    pts_2d_xf = []
+
+    for i in range(N):
+        x_1 = M_1@pts_3d[i]
+        x_1 /= x_1[-1]
+        x_2 = M_2@pts_3d[i]
+        x_2 /= x_2[-1]
+        x_1_x_2 = numpy.hstack(tup=(x_1[:2], x_2[:2]), dtype=numpy.float64)
+        pts_2d_xf.append(x_1_x_2)
+
+    pts_2d_xf = numpy.vstack(tup=pts_2d_xf, dtype=numpy.float64)
+    resid = scipy.linalg.norm(a=(pts_2d_xf-pts_2d))
+
+    return resid
 
 
 def visualize_3D(
@@ -159,14 +176,16 @@ def main():
     logger.log_info(f"{sub} 2 Camera Projection Matrix")
     logger.log_info_raw(M_2)
     if dir == "lab":
-        logger.log_info(f"{sub} 1 Residual: %f" % resid_1)
-        logger.log_info(f"{sub} 2 Residual: %f" % resid_2)
+        logger.log_info(f"{sub} 1 2D -> Projected 2D Residual: %f" % resid_1)
+        logger.log_info(f"{sub} 2 2D -> Projected 2D Residual: %f" % resid_2)
     logger.log_info(f"{sub} 1 Camera Center")
     logger.log_info_raw(cam_center_1[:-1])
     logger.log_info(f"{sub} 2 Camera Center")
     logger.log_info_raw(cam_center_2[:-1])
 
     pts_3d_xf = triangulation(M_1=M_1, M_2=M_2, pts_2d=pts_2d)
+    resid = calc_resid(M_1=M_1, M_2=M_2, pts_3d=pts_3d_xf, pts_2d=pts_2d)
+    logger.log_info(f"{sub} 2D -> Triangulated 3D Residual: %f" % resid)
 
     fig = visualize_3D(pts_3d=pts_3d_xf, cam_center_1=cam_center_1, cam_center_2=cam_center_2)
 
