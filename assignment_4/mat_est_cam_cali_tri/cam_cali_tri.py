@@ -8,7 +8,6 @@ import matplotlib.pyplot
 import numpy
 import os
 import scipy.linalg
-from mpl_toolkits.mplot3d import Axes3D
 
 
 def cam_cali(pts_3d: numpy.ndarray, pts_2d: numpy.ndarray) -> numpy.ndarray:
@@ -120,6 +119,8 @@ def main():
 
     if dir == "lab":
         sub = "Lab"
+        logger.log_info("Processing %s images" % sub)
+
         filepaths = config.filepaths[dir]
         pts_2d_filepath = filepaths[2]
         pts_3d_filepath = filepaths[3]
@@ -134,6 +135,8 @@ def main():
         _, resid_2 = evaluate_points(M=M_2, pts_3d=pts_3d, pts_2d=pts_2d[:, 2:])
     elif dir == "lib":
         sub = "Library"
+        logger.log_info("Processing %s images" % sub)
+
         filepaths = config.filepaths[dir]
         pts_2d_filepath = filepaths[2]
         M_1_filepath = filepaths[3]
@@ -157,7 +160,7 @@ def main():
     logger.log_info_raw(M_2)
     if dir == "lab":
         logger.log_info(f"{sub} 1 Residual: %f" % resid_1)
-        logger.log_info(f"{sub} 1 Residual: %f" % resid_2)
+        logger.log_info(f"{sub} 2 Residual: %f" % resid_2)
     logger.log_info(f"{sub} 1 Camera Center")
     logger.log_info_raw(cam_center_1[:-1])
     logger.log_info(f"{sub} 2 Camera Center")
