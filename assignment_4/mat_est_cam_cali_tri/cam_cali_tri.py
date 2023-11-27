@@ -201,7 +201,7 @@ def main():
     if not os.path.exists(path=res_dir):
         os.makedirs(name=res_dir, exist_ok=True)
     if config.imwrite:
-        fig.savefig(fname=os.path.join(res_dir, "cam_centers_triangulated_3d_pts.jpg"), dpi=1000, format="jpg",
+        fig.savefig(fname=os.path.join(res_dir, "cam_centers_triangulated_3d_pts.png"), dpi=1000, format="png",
                     bbox_inches="tight")
 
     return
