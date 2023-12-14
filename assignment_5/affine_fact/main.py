@@ -27,6 +27,8 @@ def calc_Q(A: numpy.ndarray) -> numpy.ndarray:
 
 def plt_3D_structure(x: numpy.ndarray) -> None:
     x = x.T
+    # matplotlib.pyplot.rc(group="font", family="serif")
+    # matplotlib.pyplot.rc(group="text", usetex=True)
     fig = matplotlib.pyplot.figure()
     ax = fig.add_subplot(111, projection="3d")
     ax.scatter(x[:, 0], x[:, 1], x[:, 2], color="cyan")
@@ -54,18 +56,23 @@ def plt_feature_pts(meas_mat: numpy.ndarray, X_reproj: numpy.ndarray, frames: li
         filepath = f"data/frame00000{idx:03d}.jpg"
         mat = PIL.Image.open(fp=filepath)
 
+        matplotlib.pyplot.rc(group="font", family="serif")
+        matplotlib.pyplot.rc(group="text", usetex=True)
         fig, ax = matplotlib.pyplot.subplots()
         ax.set_aspect("equal")
         ax.imshow(X=mat)
-        ax.scatter(meas_mat[2*idx-2, :], meas_mat[2*idx-1, :], c="cyan", marker='x')
+        ax.scatter(meas_mat[2*idx-2, :], meas_mat[2*idx-1, :], c="cyan", marker='x', label='Observed')
         ax.scatter(X_reproj[2*idx-2, :] + mu[2*idx-2, 0],
-                X_reproj[2*idx-1, :] + mu[2*idx-1, 0], c="orange", marker='+')
+                   X_reproj[2*idx-1, :] + mu[2*idx-1, 0], c="orange", marker='+', label='Estimated')
+        ax.legend(loc='upper right', title='', fontsize='small')
         matplotlib.pyplot.show()
 
     return
 
 
 def plt_per_frame_resid(frame_resid: numpy.ndarray) -> None:
+    matplotlib.pyplot.rc(group="font", family="serif")
+    matplotlib.pyplot.rc(group="text", usetex=True)
     fig, ax = matplotlib.pyplot.subplots()
     ax.set_title("Per-frame Residuals")
     ax.plot(np.arange(1, frame_resid.shape[0] + 1), frame_resid.flatten())
@@ -82,6 +89,8 @@ def main():
 
     A, X, X_reproj = svd(mat=X_obs)
     Q = calc_Q(A=A)
+    print("[INFO]: Q Matrix")
+    print(Q)
 
     X = scipy.linalg.pinv(a=Q)@X
 
@@ -90,6 +99,7 @@ def main():
     plt_feature_pts(meas_mat=meas_mat, X_reproj=X_reproj, frames=[35, 70, 100])
 
     frame_resid = calc_resid(coords_obs=X_obs, coords_reproj=X_reproj)
+    print(f"[INFO]: Total residuals {numpy.sum(frame_resid):.6f}")
     plt_per_frame_resid(frame_resid=frame_resid)
 
     return
