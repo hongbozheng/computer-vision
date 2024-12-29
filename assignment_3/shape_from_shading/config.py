@@ -14,4 +14,4 @@ integration_methods = {"average", "column", "row", "random"}
 # test
 num_paths = 35
 imshow = False
-log_level = logger.LogLevel.info
+log_level = logger.LogLevel.INFO

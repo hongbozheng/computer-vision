@@ -13,4 +13,4 @@ ransac_thres = 0.75
 multi_imgs = False
 plt_inliner_matches = False
 imshow = False
-log_level = logger.LogLevel.info
+log_level = logger.LogLevel.INFO

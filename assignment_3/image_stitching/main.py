@@ -3,7 +3,7 @@
 import config
 import cv2
 import logger
-import matplotlib.pyplot
+import matplotlib.pyplot as plt
 import os
 import stitch
 
@@ -30,14 +30,14 @@ def main():
             for i, fig in enumerate(figs):
                 res_img_path = os.path.join(res_path, "inliers_" + str(i) + ".png")
                 fig.savefig(res_img_path, dpi=1000)
-                matplotlib.pyplot.close(fig=fig)
+                plt.close(fig=fig)
 
             if config.imshow:
                 mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
-                fig, ax = matplotlib.pyplot.subplots(figsize=(15, 10))
+                fig, ax = plt.subplots(figsize=(15, 10))
                 ax.imshow(X=mat)
                 ax.set_title("Stitched Image")
-                matplotlib.pyplot.show()
+                plt.show()
 
     else:
         logger.log_info("Start stitching 2 images")
@@ -59,14 +59,14 @@ def main():
             cv2.imwrite(filename=res_img_path, img=mat)
             res_img_path = os.path.join(res_path, "inliers.png")
             figs[0].savefig(res_img_path, dpi=1000)
-            matplotlib.pyplot.close(fig=figs[0])
+            plt.close(fig=figs[0])
 
             if config.imshow:
                 mat = cv2.cvtColor(src=mat, code=cv2.COLOR_BGR2RGB)
-                fig, ax = matplotlib.pyplot.subplots(figsize=(15, 10))
+                fig, ax = plt.subplots(figsize=(15, 10))
                 ax.imshow(X=mat)
                 ax.set_title("Stitched Image")
-                matplotlib.pyplot.show()
+                plt.show()
 
     return
 

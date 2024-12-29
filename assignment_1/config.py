@@ -25,4 +25,4 @@ num_pyramid_levels = 5
 # test
 img_pyr = False
 imshow = False
-log_level = logger.LogLevel.info
+log_level = logger.LogLevel.INFO

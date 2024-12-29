@@ -4,13 +4,13 @@
 import argparse
 import config
 import logger
-import matplotlib.pyplot
-import numpy
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 import scipy.linalg
 
 
-def cam_cali(pts_3d: numpy.ndarray, pts_2d: numpy.ndarray) -> numpy.ndarray:
+def cam_cali(pts_3d: np.ndarray, pts_2d: np.ndarray) -> np.ndarray:
     """
     https://sites.cc.gatech.edu/classes/AY2016/cs4476_fall/results/proj3/html/ckobus3/index.html
     :param pts_3d: 3D coordinates
@@ -19,19 +19,25 @@ def cam_cali(pts_3d: numpy.ndarray, pts_2d: numpy.ndarray) -> numpy.ndarray:
     """
     N = pts_3d.shape[0]
 
-    zeros = numpy.zeros(shape=4, dtype=numpy.float64)
-    ones = numpy.ones(shape=(N, 1), dtype=numpy.float64)
-    pts_homo = numpy.hstack(tup=(pts_3d, ones), dtype=numpy.float64)
+    zeros = np.zeros(shape=4, dtype=np.float64)
+    ones = np.ones(shape=(N, 1), dtype=np.float64)
+    pts_homo = np.hstack(tup=(pts_3d, ones), dtype=np.float64)
 
     A = []
 
     for i in range(N):
-        row_1 = numpy.hstack(tup=(pts_homo[i], zeros, -1*pts_2d[i, 0]*pts_homo[i]), dtype=numpy.float64)
-        row_2 = numpy.hstack(tup=(zeros, pts_homo[i], -1*pts_2d[i, 1]*pts_homo[i]), dtype=numpy.float64)
+        row_1 = np.hstack(
+            tup=(pts_homo[i], zeros, -1*pts_2d[i, 0]*pts_homo[i]),
+            dtype=np.float64,
+        )
+        row_2 = np.hstack(
+            tup=(zeros, pts_homo[i], -1*pts_2d[i, 1]*pts_homo[i]),
+            dtype=np.float64,
+        )
         A.append(row_1)
         A.append(row_2)
 
-    A = numpy.vstack(tup=A, dtype=numpy.float64)
+    A = np.vstack(tup=A, dtype=np.float64)
 
     _, _, V = scipy.linalg.svd(a=A)
     M = V[-1].reshape(3, 4)
@@ -39,7 +45,11 @@ def cam_cali(pts_3d: numpy.ndarray, pts_2d: numpy.ndarray) -> numpy.ndarray:
     return M
 
 
-def evaluate_points(M: numpy.ndarray, pts_3d: numpy.ndarray, pts_2d: numpy.ndarray) -> tuple[numpy.ndarray, float]:
+def evaluate_points(
+        M: np.ndarray,
+        pts_3d: np.ndarray,
+        pts_2d: np.ndarray,
+) -> tuple[np.ndarray, float]:
     """
     Visualize the actual 2D points and the projected 2D points calculated from
     the projection matrix
@@ -51,32 +61,37 @@ def evaluate_points(M: numpy.ndarray, pts_3d: numpy.ndarray, pts_2d: numpy.ndarr
     :return:
     """
     N = pts_3d.shape[0]
-    points_3d = numpy.hstack((pts_3d, numpy.ones((N, 1))), dtype=numpy.float64)
-    points_3d_proj = numpy.dot(M, points_3d.T).T
+    points_3d = np.hstack((pts_3d, np.ones((N, 1))), dtype=np.float64)
+    points_3d_proj = np.dot(M, points_3d.T).T
     u = points_3d_proj[:, 0] / points_3d_proj[:, 2]
     v = points_3d_proj[:, 1] / points_3d_proj[:, 2]
-    residual = numpy.sum(numpy.hypot(u-pts_2d[:, 0], v-pts_2d[:, 1]), dtype=numpy.float64)
-    points_3d_proj = numpy.hstack(tup=(u[:, numpy.newaxis], v[:, numpy.newaxis]), dtype=numpy.float64)
+    residual = np.sum(np.hypot(u-pts_2d[:, 0], v-pts_2d[:, 1]), dtype=np.float64)
+    points_3d_proj = np.hstack(
+        tup=(u[:, np.newaxis], v[:, np.newaxis]), dtype=np.float64)
     return points_3d_proj, residual
 
 
-def triangulation(M_1: numpy.ndarray, M_2: numpy.ndarray, pts_2d: numpy.ndarray) -> numpy.ndarray:
+def triangulation(
+        M_1: np.ndarray,
+        M_2: np.ndarray,
+        pts_2d: np.ndarray,
+) -> np.ndarray:
     N = pts_2d.shape[0]
 
     pts_3d = []
 
     for i in range(N):
-        Q_1 = numpy.array(object=[[1, 0, -1*pts_2d[i][0]], [0, 1, -1*pts_2d[i][1]]])
-        Q_2 = numpy.array(object=[[1, 0, -1*pts_2d[i][2]], [0, 1, -1*pts_2d[i][3]]])
+        Q_1 = np.array(object=[[1, 0, -1*pts_2d[i][0]], [0, 1, -1*pts_2d[i][1]]])
+        Q_2 = np.array(object=[[1, 0, -1*pts_2d[i][2]], [0, 1, -1*pts_2d[i][3]]])
         A_1 = Q_1@M_1
         A_2 = Q_2@M_2
-        A = numpy.vstack(tup=(A_1, A_2), dtype=numpy.float64)
+        A = np.vstack(tup=(A_1, A_2), dtype=np.float64)
         _, s, V = scipy.linalg.svd(a=A)
         X = V[-1]
         X /= X[-1]
         pts_3d.append(X)
 
-    pts_3d = numpy.vstack(tup=pts_3d, dtype=numpy.float64)
+    pts_3d = np.vstack(tup=pts_3d, dtype=np.float64)
 
     pts_3d = pts_3d[:, :3]
 
@@ -84,14 +99,14 @@ def triangulation(M_1: numpy.ndarray, M_2: numpy.ndarray, pts_2d: numpy.ndarray)
 
 
 def calc_resid(
-        M_1: numpy.ndarray,
-        M_2: numpy.ndarray,
-        pts_3d: numpy.ndarray,
-        pts_2d: numpy.ndarray
+        M_1: np.ndarray,
+        M_2: np.ndarray,
+        pts_3d: np.ndarray,
+        pts_2d: np.ndarray
 ) -> tuple[float, float]:
     N = pts_3d.shape[0]
-    ones = numpy.ones(shape=(N, 1), dtype=numpy.float64)
-    pts_3d = numpy.hstack(tup=(pts_3d, ones), dtype=numpy.float64)
+    ones = np.ones(shape=(N, 1), dtype=np.float64)
+    pts_3d = np.hstack(tup=(pts_3d, ones), dtype=np.float64)
 
     pts_2d_xf = []
 
@@ -100,34 +115,56 @@ def calc_resid(
         x_1 /= x_1[-1]
         x_2 = M_2@pts_3d[i]
         x_2 /= x_2[-1]
-        x_1_x_2 = numpy.hstack(tup=(x_1[:2], x_2[:2]), dtype=numpy.float64)
+        x_1_x_2 = np.hstack(tup=(x_1[:2], x_2[:2]), dtype=np.float64)
         pts_2d_xf.append(x_1_x_2)
 
-    pts_2d_xf = numpy.vstack(tup=pts_2d_xf, dtype=numpy.float64)
-    loss = numpy.abs((pts_2d_xf-pts_2d), dtype=numpy.float64)
-    avg_resid = numpy.mean(a=loss, dtype=numpy.float64)
-    resid = numpy.sum(a=loss, dtype=numpy.float64)
+    pts_2d_xf = np.vstack(tup=pts_2d_xf, dtype=np.float64)
+    loss = np.abs((pts_2d_xf-pts_2d), dtype=np.float64)
+    avg_resid = np.mean(a=loss, dtype=np.float64)
+    resid = np.sum(a=loss, dtype=np.float64)
 
     return avg_resid, resid
 
 
 def visualize_3D(
-        pts_3d: numpy.ndarray,
-        cam_center_1: numpy.ndarray,
-        cam_center_2: numpy.ndarray
-) -> matplotlib.pyplot.Figure:
-    matplotlib.pyplot.rc(group="font", family="serif")
-    fig = matplotlib.pyplot.figure()
+        pts_3d: np.ndarray,
+        cam_center_1: np.ndarray,
+        cam_center_2: np.ndarray
+) -> plt.Figure:
+    plt.rc(group="font", family="serif")
+    fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-    ax.scatter(pts_3d[:, 0], pts_3d[:, 1], pts_3d[:, 2], s=35, c="orange", label='Points')
-    ax.scatter(cam_center_1[0, 0], cam_center_1[1, 0], cam_center_1[2, 0], s=35, c="cyan", marker='X',
-               label=r"Camera Center 1")
-    ax.scatter(cam_center_2[0, 0], cam_center_2[1, 0], cam_center_2[2, 0], s=35, c="magenta", marker='X',
-               label=r"Camera Center 2")
-    ax.set_title(r"\textbf{Camera Centers \& Triangulated 3D Points}", usetex=True)
+    ax.scatter(
+        pts_3d[:, 0],
+        pts_3d[:, 1],
+        pts_3d[:, 2],
+        s=35,
+        c="orange",
+        label='Points',
+    )
+    ax.scatter(
+        cam_center_1[0, 0],
+        cam_center_1[1, 0],
+        cam_center_1[2, 0],
+        s=35,
+        c="cyan",
+        marker='X',
+        label=r"Camera Center 1",
+    )
+    ax.scatter(
+        cam_center_2[0, 0],
+        cam_center_2[1, 0],
+        cam_center_2[2, 0],
+        s=35,
+        c="magenta",
+        marker='X',
+        label=r"Camera Center 2",
+    )
+    ax.set_title(
+        r"\textbf{Camera Centers \& Triangulated 3D Points}", usetex=True)
     ax.legend(loc="best", fontsize=10)
     ax.view_init(elev=35, azim=-45, roll=0)
-    matplotlib.pyplot.show()
+    plt.show()
 
     return fig
 
@@ -135,8 +172,14 @@ def visualize_3D(
 def main():
     parser = argparse.ArgumentParser()
     allowed_files = ["lib", "lab"]
-    parser.add_argument("--input_file", "-f", type=str, choices=allowed_files, required=True,
-                        help="Input file")
+    parser.add_argument(
+        "--input_file",
+        "-f",
+        type=str,
+        choices=allowed_files,
+        required=True,
+        help="Input file",
+    )
 
     args = parser.parse_args()
     dir = args.input_file
@@ -149,8 +192,8 @@ def main():
         pts_2d_filepath = filepaths[2]
         pts_3d_filepath = filepaths[3]
 
-        pts_2d = numpy.loadtxt(fname=pts_2d_filepath, dtype=numpy.float64)
-        pts_3d = numpy.loadtxt(fname=pts_3d_filepath, dtype=numpy.float64)
+        pts_2d = np.loadtxt(fname=pts_2d_filepath, dtype=np.float64)
+        pts_3d = np.loadtxt(fname=pts_3d_filepath, dtype=np.float64)
 
         M_1 = cam_cali(pts_3d=pts_3d, pts_2d=pts_2d[:, :2])
         M_2 = cam_cali(pts_3d=pts_3d, pts_2d=pts_2d[:, 2:])
@@ -166,10 +209,10 @@ def main():
         M_1_filepath = filepaths[3]
         M_2_filepath = filepaths[4]
 
-        pts_2d = numpy.loadtxt(fname=pts_2d_filepath, dtype=numpy.float64)
+        pts_2d = np.loadtxt(fname=pts_2d_filepath, dtype=np.float64)
 
-        M_1 = numpy.loadtxt(fname=M_1_filepath, dtype=numpy.float64)
-        M_2 = numpy.loadtxt(fname=M_2_filepath, dtype=numpy.float64)
+        M_1 = np.loadtxt(fname=M_1_filepath, dtype=np.float64)
+        M_2 = np.loadtxt(fname=M_2_filepath, dtype=np.float64)
     else:
         logger.log_error("Invalid filename")
 
@@ -191,18 +234,25 @@ def main():
     logger.log_info_raw(cam_center_2[:-1])
 
     pts_3d_xf = triangulation(M_1=M_1, M_2=M_2, pts_2d=pts_2d)
-    avg_resid, resid = calc_resid(M_1=M_1, M_2=M_2, pts_3d=pts_3d_xf, pts_2d=pts_2d)
-    logger.log_info(f"{sub} 2D -> Triangulated 3D Average Residual: %f" % avg_resid)
+    avg_resid, resid = calc_resid(
+        M_1=M_1, M_2=M_2, pts_3d=pts_3d_xf, pts_2d=pts_2d)
+    logger.log_info(
+        f"{sub} 2D -> Triangulated 3D Average Residual: %f" % avg_resid)
     logger.log_info(f"{sub} 2D -> Triangulated 3D Total Residual: %f" % resid)
 
-    fig = visualize_3D(pts_3d=pts_3d_xf, cam_center_1=cam_center_1, cam_center_2=cam_center_2)
+    fig = visualize_3D(
+        pts_3d=pts_3d_xf, cam_center_1=cam_center_1, cam_center_2=cam_center_2)
 
     res_dir = os.path.join(config.res_dir, sub)
     if not os.path.exists(path=res_dir):
         os.makedirs(name=res_dir, exist_ok=True)
     if config.imwrite:
-        fig.savefig(fname=os.path.join(res_dir, "cam_centers_triangulated_3d_pts.png"), dpi=1000, format="png",
-                    bbox_inches="tight")
+        fig.savefig(
+            fname=os.path.join(res_dir, "cam_centers_triangulated_3d_pts.png"),
+            dpi=1000,
+            format="png",
+            bbox_inches="tight",
+        )
 
     return
 

@@ -1,16 +1,17 @@
-import enum
 import config
+import enum
+from datetime import datetime
 
 
 class LogLevel(enum.Enum):
-    all = 6
-    trace = 5
-    debug = 4
-    info = 3
-    warn = 2
-    error = 1
-    fatal = 0
-    off = -1
+    ALL = 6
+    TRACE = 5
+    DEBUG = 4
+    INFO = 3
+    WARN = 2
+    ERROR = 1
+    FATAL = 0
+    OFF = -1
 
     def __ge__(self, other):
         if self.__class__ is other.__class__:
@@ -33,79 +34,102 @@ class LogLevel(enum.Enum):
         return NotImplemented
 
 
-def log_trace(*args, **kwargs):
-    if config.log_level >= LogLevel.trace:
-        print("[TRACE]: ", end="")
+def timestamp() -> str:
+    time = datetime.now().strftime(format="%Y-%m-%d %H:%M:%S")
+    return time
+
+
+def log_trace(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.TRACE:
+        ts = timestamp()
+        print(f"[{ts}] [TRACE]: ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_debug(*args, **kwargs):
-    if config.log_level >= LogLevel.debug:
-        print("[DEBUG]: ", end="")
+def log_debug(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.DEBUG:
+        ts = timestamp()
+        print(f"[{ts}] [DEBUG]: ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_info(*args, **kwargs):
-    if config.log_level >= LogLevel.info:
-        print("[INFO]: ", end="")
+def log_info(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.INFO:
+        ts = timestamp()
+        print(f"[{ts}] [INFO]: ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_warn(*args, **kwargs):
-    if config.log_level >= LogLevel.warn:
-        print("[WARN]: ", end="")
+def log_warn(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.WARN:
+        ts = timestamp()
+        print(f"[{ts}] [WARN]: ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_error(*args, **kwargs):
-    if config.log_level >= LogLevel.error:
-        print("[ERROR]: ", end="")
+def log_error(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.ERROR:
+        ts = timestamp()
+        print(f"[{ts}] [ERROR]: ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_fatal(*args, **kwargs):
-    if config.log_level >= LogLevel.fatal:
-        print("[FATAL]: ", end="")
+def log_fatal(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.FATAL:
+        ts = timestamp()
+        print(f"[{ts}] [FATAL]: ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_trace_raw(*args, **kwargs):
-    if config.log_level >= LogLevel.trace:
+def log_trace_raw(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.TRACE:
+        ts = timestamp()
+        print(f"[{ts}] ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_debug_raw(*args, **kwargs):
-    if config.log_level >= LogLevel.debug:
+def log_debug_raw(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.DEBUG:
+        ts = timestamp()
+        print(f"[{ts}] ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_info_raw(*args, **kwargs):
-    if config.log_level >= LogLevel.info:
+def log_info_raw(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.INFO:
+        ts = timestamp()
+        print(f"[{ts}] ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_warn_raw(*args, **kwargs):
-    if config.log_level >= LogLevel.warn:
+def log_warn_raw(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.WARN:
+        ts = timestamp()
+        print(f"[{ts}] ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_error_raw(*args, **kwargs):
-    if config.log_level >= LogLevel.error:
+def log_error_raw(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.ERROR:
+        ts = timestamp()
+        print(f"[{ts}] ", end="")
         print(*args, **kwargs)
     return
 
 
-def log_fatal_raw(*args, **kwargs):
-    if config.log_level >= LogLevel.fatal:
+def log_fatal_raw(*args, **kwargs) -> None:
+    if config.LOG_LEVEL >= LogLevel.FATAL:
+        ts = timestamp()
+        print(f"[{ts}] ", end="")
         print(*args, **kwargs)
     return

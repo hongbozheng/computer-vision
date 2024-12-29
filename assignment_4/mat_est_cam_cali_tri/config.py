@@ -31,4 +31,4 @@ res_dir = "results"
 # test
 plt_inliner_matches = True
 imwrite = True
-log_level = logger.LogLevel.info
+log_level = logger.LogLevel.INFO

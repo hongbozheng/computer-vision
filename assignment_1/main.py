@@ -13,13 +13,26 @@ def main():
     if config.img_pyr:
         logger.log_info("Start multiscale alignment")
         logger.log_info("Metric = %s" % config.metric)
-        multiscale_alignment_image_names = os.listdir(path=config.multiscale_alignment_images_dir)
+        multiscale_alignment_image_names = os.listdir(
+            path=config.multiscale_alignment_images_dir,
+        )
 
         for filename in multiscale_alignment_image_names:
             logger.log_info("Processing file %s" % filename)
-            filepath = os.path.join(config.multiscale_alignment_images_dir, filename)
-            mat = align.align(filepath=filepath, img_pyr=config.img_pyr, num_pyr_levels=config.num_pyramid_levels)
-            result_img_path = os.path.join(config.multiscale_alignment_results_dir, config.metric, filename)
+            filepath = os.path.join(
+                config.multiscale_alignment_images_dir,
+                filename,
+            )
+            mat = align.align(
+                filepath=filepath,
+                img_pyr=config.img_pyr,
+                num_pyr_levels=config.num_pyramid_levels,
+            )
+            result_img_path = os.path.join(
+                config.multiscale_alignment_results_dir,
+                config.metric,
+                filename,
+            )
             cv2.imwrite(filename=result_img_path, img=mat)
 
             if config.imshow:
@@ -30,14 +43,27 @@ def main():
     else:
         logger.log_info("Start single-scale alignment")
         logger.log_info("Metric = %s" % config.metric)
-        single_scale_alignment_image_names = os.listdir(path=config.single_scale_alignment_images_dir)
+        single_scale_alignment_image_names = os.listdir(
+            path=config.single_scale_alignment_images_dir,
+        )
 
         for filename in single_scale_alignment_image_names:
             logger.log_info("Processing file %s" % filename)
-            filepath = os.path.join(config.single_scale_alignment_images_dir, filename)
-            mat = align.align(filepath=filepath, img_pyr=config.img_pyr, num_pyr_levels=config.num_pyramid_levels)
+            filepath = os.path.join(
+                config.single_scale_alignment_images_dir,
+                filename,
+            )
+            mat = align.align(
+                filepath=filepath,
+                img_pyr=config.img_pyr,
+                num_pyr_levels=config.num_pyramid_levels,
+            )
             mat = mat[:, :, ::-1]
-            result_img_path = os.path.join(config.single_scale_alignment_results_dir, config.metric, filename)
+            result_img_path = os.path.join(
+                config.single_scale_alignment_results_dir,
+                config.metric,
+                filename,
+            )
             image = PIL.Image.fromarray(obj=mat)
             image.save(fp=result_img_path)
 

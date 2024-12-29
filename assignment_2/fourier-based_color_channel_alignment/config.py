@@ -25,4 +25,4 @@ base_ch_order = ['B', 'G', 'R']
 high_res = False
 LoG_filter = False
 imshow = False
-log_level = logger.LogLevel.info
+log_level = logger.LogLevel.INFO

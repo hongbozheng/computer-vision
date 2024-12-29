@@ -1,12 +1,12 @@
 import config
 import glob
 import logger
-import matplotlib.pyplot
-import numpy
+import matplotlib.pyplot as plt
+import numpy as np
 import os
-import PIL.Image
 import scipy
 import time
+from PIL import Image
 
 
 # Image loading and saving
@@ -20,56 +20,57 @@ def LoadFaceImages(subject_dir, subject_name, num_images):
     """
 
     def load_image(fname):
-        return numpy.asarray(PIL.Image.open(fname))
+        return np.asarray(Image.open(fname))
 
     def fname_to_ang(fname):
         yale_name = os.path.basename(fname)
         return int(yale_name[12:16]), int(yale_name[17:20])
 
     def sph2cart(az, el, r):
-        rcos_theta = r * numpy.cos(el)
-        x = rcos_theta * numpy.cos(az)
-        y = rcos_theta * numpy.sin(az)
-        z = r * numpy.sin(el)
+        rcos_theta = r * np.cos(el)
+        x = rcos_theta * np.cos(az)
+        y = rcos_theta * np.sin(az)
+        z = r * np.sin(el)
         return x, y, z
 
-    ambimage = load_image(os.path.join(subject_dir, subject_name + '_P00_Ambient.pgm'))
+    ambimage = load_image(
+        os.path.join(subject_dir, subject_name + '_P00_Ambient.pgm'))
     im_list = glob.glob(os.path.join(subject_dir, subject_name + '_P00A*.pgm'))
 
     im_list_filtered = []
     for fname in im_list:
         mat = load_image(fname=fname)
-        num_dark_pixels = numpy.where(mat <= config.pixel_val_thres)[0].shape[0]
+        num_dark_pixels = np.where(mat <= config.pixel_val_thres)[0].shape[0]
         dark_pixel_ratio = num_dark_pixels/mat.size
 
         if dark_pixel_ratio <= config.dark_pixel_ratio_thres:
             im_list_filtered.append(fname)
 
     # if num_images <= len(im_list):
-    #     im_sub_list = numpy.random.choice(im_list, num_images, replace=False)
+    #     im_sub_list = np.random.choice(im_list, num_images, replace=False)
     # else:
     #     print('Total available images is less than specified.\nProceeding with %d images.\n' % len(im_list))
     #     im_sub_list = im_list
 
     im_sub_list = im_list_filtered
     im_sub_list.sort()
-    imarray = numpy.stack([load_image(fname) for fname in im_sub_list], axis=-1)
-    Ang = numpy.array([fname_to_ang(fname) for fname in im_sub_list])
+    imarray = np.stack([load_image(fname) for fname in im_sub_list], axis=-1)
+    Ang = np.array([fname_to_ang(fname) for fname in im_sub_list])
 
-    x, y, z = sph2cart(Ang[:, 0] / 180.0 * numpy.pi, Ang[:, 1] / 180.0 * numpy.pi, 1)
-    lightdirs = numpy.stack([y, z, x], axis=-1)
+    x, y, z = sph2cart(Ang[:, 0] / 180.0 * np.pi, Ang[:, 1] / 180.0 * np.pi, 1)
+    lightdirs = np.stack([y, z, x], axis=-1)
 
     return ambimage, imarray, lightdirs
 
 
 def save_outputs(subject_name, albedo_image, surface_normals):
-    im = PIL.Image.fromarray((albedo_image * 255).astype(numpy.uint8))
+    im = Image.fromarray((albedo_image * 255).astype(np.uint8))
     im.save("%s_albedo.jpg" % subject_name)
-    im = PIL.Image.fromarray((surface_normals[:, :, 0] * 128 + 128).astype(numpy.uint8))
+    im = Image.fromarray((surface_normals[:, :, 0] * 128 + 128).astype(np.uint8))
     im.save("%s_normals_x.jpg" % subject_name)
-    im = PIL.Image.fromarray((surface_normals[:, :, 1] * 128 + 128).astype(numpy.uint8))
+    im = Image.fromarray((surface_normals[:, :, 1] * 128 + 128).astype(np.uint8))
     im.save("%s_normals_y.jpg" % subject_name)
-    im = PIL.Image.fromarray((surface_normals[:, :, 2] * 128 + 128).astype(numpy.uint8))
+    im = Image.fromarray((surface_normals[:, :, 2] * 128 + 128).astype(np.uint8))
     im.save("%s_normals_z.jpg" % subject_name)
 
 
@@ -96,28 +97,29 @@ def set_aspect_equal_3d(ax):
 
 
 def display_output(albedo_image, height_map):
-    fig = matplotlib.pyplot.figure()
-    matplotlib.pyplot.imshow(albedo_image, cmap='gray')
-    matplotlib.pyplot.axis('off')
+    fig = plt.figure()
+    plt.imshow(albedo_image, cmap='gray')
+    plt.axis('off')
 
-    fig = matplotlib.pyplot.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(projection='3d')
     ax.view_init(20, 20)
-    X = numpy.arange(albedo_image.shape[0])
-    Y = numpy.arange(albedo_image.shape[1])
-    X, Y = numpy.meshgrid(Y, X)
-    H = numpy.flipud(numpy.fliplr(height_map))
-    A = numpy.flipud(numpy.fliplr(albedo_image))
-    A = numpy.stack([A, A, A], axis=-1)
+    X = np.arange(albedo_image.shape[0])
+    Y = np.arange(albedo_image.shape[1])
+    X, Y = np.meshgrid(Y, X)
+    H = np.flipud(np.fliplr(height_map))
+    A = np.flipud(np.fliplr(albedo_image))
+    A = np.stack([A, A, A], axis=-1)
     ax.xaxis.set_ticks([])
     ax.xaxis.set_label_text('Z')
     ax.yaxis.set_ticks([])
     ax.yaxis.set_label_text('X')
     ax.zaxis.set_ticks([])
     ax.yaxis.set_label_text('Y')
-    surf = ax.plot_surface(H, X, Y, cmap='gray', facecolors=A, linewidth=0, antialiased=False)
+    surf = ax.plot_surface(
+        H, X, Y, cmap='gray', facecolors=A, linewidth=0, antialiased=False)
     set_aspect_equal_3d(ax)
-    matplotlib.pyplot.show()
+    plt.show()
 
 
 # Plot the surface normals
@@ -126,20 +128,20 @@ def plot_surface_normals(surface_normals):
     surface_normals: h x w x 3 matrix.
     """
 
-    fig = matplotlib.pyplot.figure()
-    ax = matplotlib.pyplot.subplot(1, 3, 1)
+    fig = plt.figure()
+    ax = plt.subplot(1, 3, 1)
     ax.axis('off')
     ax.set_title('X')
     im = ax.imshow(surface_normals[:, :, 0])
-    ax = matplotlib.pyplot.subplot(1, 3, 2)
+    ax = plt.subplot(1, 3, 2)
     ax.axis('off')
     ax.set_title('Y')
     im = ax.imshow(surface_normals[:, :, 1])
-    ax = matplotlib.pyplot.subplot(1, 3, 3)
+    ax = plt.subplot(1, 3, 3)
     ax.axis('off')
     ax.set_title('Z')
     im = ax.imshow(surface_normals[:, :, 2])
-    matplotlib.pyplot.show()
+    plt.show()
 
 
 def preprocess(ambimage, imarray):
@@ -155,10 +157,10 @@ def preprocess(ambimage, imarray):
         processed_imarray: h x w x Nimages
     """
 
-    ambimage = ambimage.astype(dtype=numpy.float64)
-    imarray = imarray.astype(dtype=numpy.float64)
-    processed_imarray = imarray - ambimage[:, :, numpy.newaxis]
-    processed_imarray = numpy.clip(a=processed_imarray, a_min=0, a_max=255)
+    ambimage = ambimage.astype(dtype=np.float64)
+    imarray = imarray.astype(dtype=np.float64)
+    processed_imarray = imarray - ambimage[:, :, np.newaxis]
+    processed_imarray = np.clip(a=processed_imarray, a_min=0, a_max=255)
     processed_imarray /= 255.0
 
     return processed_imarray
@@ -176,13 +178,16 @@ def photometric_stereo(imarray, light_dirs):
 
     h, w, _ = imarray.shape
 
-    imarray = numpy.reshape(a=imarray, newshape=(imarray.shape[0]*imarray.shape[1], imarray.shape[2]))
+    imarray = np.reshape(
+        a=imarray,
+        newshape=(imarray.shape[0]*imarray.shape[1], imarray.shape[2]),
+    )
     g, res, rank, s = scipy.linalg.lstsq(a=light_dirs, b=imarray.T, cond=None)
     g = g.T
-    g = numpy.reshape(a=g, newshape=(h, w, 3))
+    g = np.reshape(a=g, newshape=(h, w, 3))
 
     albedo_image = scipy.linalg.norm(a=g, axis=2)
-    surface_normals = g/albedo_image[:, :, numpy.newaxis]
+    surface_normals = g/albedo_image[:, :, np.newaxis]
 
     return albedo_image, surface_normals
 
@@ -206,16 +211,18 @@ def get_surface(surface_normals, integration_method):
     fy = surface_normals[:, :, 1]/surface_normals[:, :, 2]
 
     if integration_method == "average":
-        h_map_rc = numpy.cumsum(a=fx, axis=1)[0] + numpy.cumsum(a=fy, axis=0)
-        h_map_cr = numpy.cumsum(a=fx, axis=1) + numpy.reshape(a=numpy.cumsum(a=fy, axis=0)[:, 0], newshape=(-1, 1))
+        h_map_rc = np.cumsum(a=fx, axis=1)[0] + np.cumsum(a=fy, axis=0)
+        h_map_cr = np.cumsum(a=fx, axis=1) + \
+                   np.reshape(a=np.cumsum(a=fy, axis=0)[:, 0], newshape=(-1, 1))
         height_map = (h_map_rc + h_map_cr) / 2
     elif integration_method == "row":
-        height_map = numpy.cumsum(a=fx, axis=1)[0] + numpy.cumsum(a=fy, axis=0)
+        height_map = np.cumsum(a=fx, axis=1)[0] + np.cumsum(a=fy, axis=0)
     elif integration_method == "column":
-        height_map = numpy.cumsum(a=fx, axis=1) + numpy.reshape(a=numpy.cumsum(a=fy, axis=0)[:, 0], newshape=(-1, 1))
+        height_map = np.cumsum(a=fx, axis=1) + \
+                     np.reshape(a=np.cumsum(a=fy, axis=0)[:, 0], newshape=(-1, 1))
     elif integration_method == "random":
         h, w, _ = surface_normals.shape
-        height_map = numpy.zeros(shape=(h, w))
+        height_map = np.zeros(shape=(h, w))
 
         for y in range(h):
             for x in range(w):
@@ -223,10 +230,10 @@ def get_surface(surface_normals, integration_method):
                     continue
 
                 for i in range(config.num_paths):
-                    zeros = numpy.zeros(shape=x)
-                    ones = numpy.ones(shape=y)
-                    path = numpy.concatenate((zeros, ones))
-                    numpy.random.shuffle(path)
+                    zeros = np.zeros(shape=x)
+                    ones = np.ones(shape=y)
+                    path = np.concatenate((zeros, ones))
+                    np.random.shuffle(path)
 
                     x_steps = 0
                     y_steps = 0
@@ -251,10 +258,15 @@ def get_surface(surface_normals, integration_method):
     return height_map
 
 
-def recover_surface(subject_dir: str) -> tuple[numpy.ndarray, numpy.ndarray]:
+def recover_surface(subject_dir: str) -> tuple[np.ndarray, np.ndarray]:
     _, subject_name = os.path.split(p=subject_dir)
-    ambient_image, imarray, light_dirs = LoadFaceImages(subject_dir=subject_dir, subject_name=subject_name, num_images=64)
+    ambient_image, imarray, light_dirs = LoadFaceImages(
+        subject_dir=subject_dir,
+        subject_name=subject_name,
+        num_images=64,
+    )
     processed_imarray = preprocess(ambimage=ambient_image, imarray=imarray)
-    albedo_image, surface_normals = photometric_stereo(imarray=processed_imarray, light_dirs=light_dirs)
+    albedo_image, surface_normals = photometric_stereo(
+        imarray=processed_imarray, light_dirs=light_dirs)
 
     return albedo_image, surface_normals

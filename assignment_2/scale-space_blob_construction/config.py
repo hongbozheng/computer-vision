@@ -37,4 +37,4 @@ arrow_color = "magenta"
 # test
 levels = 15
 imshow = False
-log_level = logger.LogLevel.info
+log_level = logger.LogLevel.INFO

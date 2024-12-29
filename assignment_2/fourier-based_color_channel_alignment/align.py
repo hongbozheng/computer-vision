@@ -3,15 +3,20 @@
 import config
 import cv2
 import logger
-import numpy
+import numpy as np
 import PIL.Image
 
-LoG_Filter = numpy.array([[0, -2, 0],
+LoG_Filter = np.array([[0, -2, 0],
                           [-2, 8, -2],
                           [0, -2, 0]])
 
 
-def rm_border(mat: numpy.ndarray, border_search_range: int, white_thres: int, black_thres: int) -> numpy.ndarray:
+def rm_border(
+        mat: np.ndarray,
+        border_search_range: int,
+        white_thres: int,
+        black_thres: int,
+) -> np.ndarray:
     """
     Remove the white and black borders of the image
 
@@ -32,9 +37,11 @@ def rm_border(mat: numpy.ndarray, border_search_range: int, white_thres: int, bl
         idx_l = 0
         idx_r = mat.shape[1]
         for (idx_col, pixel_val) in enumerate(row):
-            if idx_col < border_search_range and (pixel_val <= black_thres or pixel_val >= white_thres):
+            if idx_col < border_search_range \
+                    and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_l = max(idx_l, idx_col)
-            elif idx_col >= mat.shape[1]-border_search_range and (pixel_val <= black_thres or pixel_val >= white_thres):
+            elif idx_col >= mat.shape[1]-border_search_range \
+                    and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_r = min(idx_r, idx_col)
         idx_left_list.append(idx_l)
         idx_right_list.append(idx_r)
@@ -45,18 +52,32 @@ def rm_border(mat: numpy.ndarray, border_search_range: int, white_thres: int, bl
         idx_b = mat.shape[0]
         for idx_row in range(mat.shape[0]):
             pixel_val = mat[idx_row][idx_col]
-            if idx_row < border_search_range and (pixel_val <= black_thres or pixel_val >= white_thres):
+            if idx_row < border_search_range \
+                    and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_t = max(idx_t, idx_row)
-            elif idx_row >= mat.shape[0]-border_search_range and (pixel_val <= black_thres or pixel_val >= white_thres):
+            elif idx_row >= mat.shape[0]-border_search_range \
+                    and (pixel_val <= black_thres or pixel_val >= white_thres):
                 idx_b = min(idx_b, idx_row)
         idx_top_list.append(idx_t)
         idx_btm_list.append(idx_b)
 
     # find the coordinate that is proposed the most times
-    idx_left = max(idx_left_list, key=lambda x: (x != border_search_range-1, idx_left_list.count(x)))
-    idx_right = max(idx_right_list, key=lambda x: (x != mat.shape[1]-border_search_range-1, idx_right_list.count(x)))
-    idx_top = max(idx_top_list, key=lambda x: (x != border_search_range-1, idx_top_list.count(x)))
-    idx_btm = max(idx_btm_list, key=lambda x: (x != mat.shape[0]-border_search_range-1, idx_btm_list.count(x)))
+    idx_left = max(
+        idx_left_list,
+        key=lambda x: (x != border_search_range-1, idx_left_list.count(x)),
+    )
+    idx_right = max(
+        idx_right_list,
+        key=lambda x: (x != mat.shape[1]-border_search_range-1, idx_right_list.count(x)),
+    )
+    idx_top = max(
+        idx_top_list,
+        key=lambda x: (x != border_search_range-1, idx_top_list.count(x)),
+    )
+    idx_btm = max(
+        idx_btm_list,
+        key=lambda x: (x != mat.shape[0]-border_search_range-1, idx_btm_list.count(x)),
+    )
 
     # crop the image with the proposed coordinate
     mat = mat[idx_top:idx_btm, idx_left:idx_right]
@@ -64,9 +85,10 @@ def rm_border(mat: numpy.ndarray, border_search_range: int, white_thres: int, bl
     return mat
 
 
-def resize_image(mat: numpy.ndarray, width: int, height: int) -> numpy.ndarray:
+def resize_image(mat: np.ndarray, width: int, height: int) -> np.ndarray:
     """
-    Resize the image to the desire width and height by cropping even pixels on both side
+    Resize the image to the desire width and height by cropping even pixels
+    on both side
 
     :param mat: input image matrix
     :param width: desire image width
@@ -95,7 +117,10 @@ def resize_image(mat: numpy.ndarray, width: int, height: int) -> numpy.ndarray:
     return mat
 
 
-def split_image(mat: numpy.ndarray, border_search_range: int) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+def split_image(
+        mat: np.ndarray,
+        border_search_range: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Split the B, G, R channels from the image by searching the black borders
     in the range of [height//3 - border_search_range, height//3 + border_search_range]
@@ -123,9 +148,24 @@ def split_image(mat: numpy.ndarray, border_search_range: int) -> tuple[numpy.nda
 
     # remove the border for the B, G, R channels (only for single-scale)
     if config.high_res:
-        b_ch_mat = rm_border(mat=b_ch_mat, border_search_range=5, white_thres=255, black_thres=15)
-        g_ch_mat = rm_border(mat=g_ch_mat, border_search_range=5, white_thres=255, black_thres=15)
-        r_ch_mat = rm_border(mat=r_ch_mat, border_search_range=5, white_thres=255, black_thres=15)
+        b_ch_mat = rm_border(
+            mat=b_ch_mat,
+            border_search_range=5,
+            white_thres=255,
+            black_thres=15,
+        )
+        g_ch_mat = rm_border(
+            mat=g_ch_mat,
+            border_search_range=5,
+            white_thres=255,
+            black_thres=15,
+        )
+        r_ch_mat = rm_border(
+            mat=r_ch_mat,
+            border_search_range=5,
+            white_thres=255,
+            black_thres=15,
+        )
 
     # resize B, G, R channels to the minimum size among them
     min_height = min(b_ch_mat.shape[0], g_ch_mat.shape[0], r_ch_mat.shape[0])
@@ -137,7 +177,7 @@ def split_image(mat: numpy.ndarray, border_search_range: int) -> tuple[numpy.nda
     return b_ch_mat, g_ch_mat, r_ch_mat
 
 
-def LoG_filter(mat: numpy.ndarray) -> numpy.ndarray:
+def LoG_filter(mat: np.ndarray) -> np.ndarray:
     """
     Preprocess image with laplacian of gaussian filter to highlight edges
 
@@ -145,15 +185,27 @@ def LoG_filter(mat: numpy.ndarray) -> numpy.ndarray:
     :return: image matrix with edges highlighted
     """
 
-    mat = cv2.GaussianBlur(src=mat, ksize=config.gaussian_blur_kernel_size,
-                           sigmaX=config.gaussian_blur_sigmaX, sigmaY=config.gaussian_blur_sigmaY)
-    mat = cv2.Laplacian(src=mat, ddepth=cv2.CV_64F, ksize=config.laplacian_kernel_size)
+    mat = cv2.GaussianBlur(
+        src=mat,
+        ksize=config.gaussian_blur_kernel_size,
+        sigmaX=config.gaussian_blur_sigmaX,
+        sigmaY=config.gaussian_blur_sigmaY,
+    )
+    mat = cv2.Laplacian(
+        src=mat,
+        ddepth=cv2.CV_64F,
+        ksize=config.laplacian_kernel_size,
+    )
     return mat
 
 
-def find_disp(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray) -> tuple[tuple[int, int], numpy.ndarray]:
+def find_disp(
+        base_ch_mat: np.ndarray,
+        cmp_ch_mat: np.ndarray,
+) -> tuple[tuple[int, int], np.ndarray]:
     """
-    Find the displacement of the compare channel image with respect to the base channel image with FT
+    Find the displacement of the compare channel image with respect to
+    the base channel image with FT
 
     :param base_ch_mat: base channel image matrix to compare
     :param cmp_ch_mat: compare channel image matrix
@@ -165,24 +217,24 @@ def find_disp(base_ch_mat: numpy.ndarray, cmp_ch_mat: numpy.ndarray) -> tuple[tu
         # base_ch_mat = cv2.filter2D(src=base_ch_mat, ddepth=-1, kernel=LoG_Filter)
         cmp_ch_mat = LoG_filter(mat=cmp_ch_mat)
         # cmp_ch_mat = cv2.filter2D(src=cmp_ch_mat, ddepth=-1, kernel=LoG_Filter)
-    base_ch_ft = numpy.fft.fft2(a=base_ch_mat)
-    cmp_ch_ft = numpy.fft.fft2(a=cmp_ch_mat)
-    cmp_ch_ft_conj = numpy.conjugate(cmp_ch_ft)
-    inv_ft = numpy.fft.ifft2(a=base_ch_ft*cmp_ch_ft_conj)
-    inv_ft = numpy.fft.fftshift(x=inv_ft)
-    coord = numpy.unravel_index(indices=numpy.argmax(a=inv_ft), shape=inv_ft.shape)
+    base_ch_ft = np.fft.fft2(a=base_ch_mat)
+    cmp_ch_ft = np.fft.fft2(a=cmp_ch_mat)
+    cmp_ch_ft_conj = np.conjugate(cmp_ch_ft)
+    inv_ft = np.fft.ifft2(a=base_ch_ft*cmp_ch_ft_conj)
+    inv_ft = np.fft.fftshift(x=inv_ft)
+    coord = np.unravel_index(indices=np.argmax(a=inv_ft), shape=inv_ft.shape)
     disp = (coord[0] - inv_ft.shape[0]//2, coord[1] - inv_ft.shape[1]//2)
 
     return disp, inv_ft
 
 
 def try_ch_align(
-    b_ch_mat: numpy.ndarray,
-    g_ch_mat: numpy.ndarray,
-    r_ch_mat: numpy.ndarray
-) -> tuple[tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray],
-           tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray],
-           tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]]:
+    b_ch_mat: np.ndarray,
+    g_ch_mat: np.ndarray,
+    r_ch_mat: np.ndarray
+) -> tuple[tuple[np.ndarray, np.ndarray, np.ndarray],
+           tuple[np.ndarray, np.ndarray, np.ndarray],
+           tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """
     Find the all displacement by trying blue, green, red channel as base channel
 
@@ -190,30 +242,52 @@ def try_ch_align(
     :param b_ch_mat: blue channel image matrix
     :param g_ch_mat: green channel image matrix
     :param r_ch_mat: red channel image matrix
-    :return: displacement information (base channel, displacement for first channel, displacement for second channel)
+    :return: displacement information (base channel, displacement for first
+             channel, displacement for second channel)
     """
 
     disp_g, inv_ft_bg = find_disp(base_ch_mat=b_ch_mat, cmp_ch_mat=g_ch_mat)
     disp_r, inv_ft_br = find_disp(base_ch_mat=b_ch_mat, cmp_ch_mat=r_ch_mat)
-    mat_b = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
-                               base_ch='B', disp_0=disp_g, disp_1=disp_r)
+    mat_b = stack_bgr_channels(
+        b_ch_mat=b_ch_mat,
+        g_ch_mat=g_ch_mat,
+        r_ch_mat=r_ch_mat,
+        base_ch='B',
+        disp_0=disp_g,
+        disp_1=disp_r,
+    )
     disp_b, inv_ft_gb = find_disp(base_ch_mat=g_ch_mat, cmp_ch_mat=b_ch_mat)
     disp_r, inv_ft_gr = find_disp(base_ch_mat=g_ch_mat, cmp_ch_mat=r_ch_mat)
-    mat_g = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
-                               base_ch='G', disp_0=disp_b, disp_1=disp_r)
+    mat_g = stack_bgr_channels(
+        b_ch_mat=b_ch_mat,
+        g_ch_mat=g_ch_mat,
+        r_ch_mat=r_ch_mat,
+        base_ch='G',
+        disp_0=disp_b,
+        disp_1=disp_r,
+    )
     disp_b, inv_ft_rb = find_disp(base_ch_mat=r_ch_mat, cmp_ch_mat=b_ch_mat)
     disp_g, inv_ft_rg = find_disp(base_ch_mat=r_ch_mat, cmp_ch_mat=g_ch_mat)
-    mat_r = stack_bgr_channels(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat,
-                               base_ch='R', disp_0=disp_b, disp_1=disp_g)
+    mat_r = stack_bgr_channels(
+        b_ch_mat=b_ch_mat,
+        g_ch_mat=g_ch_mat,
+        r_ch_mat=r_ch_mat,
+        base_ch='R',
+        disp_0=disp_b,
+        disp_1=disp_g,
+    )
 
     return (mat_b, inv_ft_bg, inv_ft_br), (mat_g, inv_ft_gb, inv_ft_gr), (mat_r, inv_ft_rb, inv_ft_rg)
 
 
-def channel_overlap(base_ch_mat: numpy.ndarray,
-                    cmp_ch_mat: numpy.ndarray,
-                    disp: tuple[int, int]) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
+def channel_overlap(
+        base_ch_mat: np.ndarray,
+        cmp_ch_mat: np.ndarray,
+        disp: tuple[int, int],
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
-    Find the overlap area between the base channel image and the compare channel image under displacement
+    Find the overlap area between the base channel image and the compare
+    channel image under displacement
 
     :param base_ch_mat: base channel image matrix
     :param cmp_ch_mat: compare channel image matrix
@@ -240,25 +314,29 @@ def channel_overlap(base_ch_mat: numpy.ndarray,
 
 
 def bgr_channel_overlap(
-    base_ch_mat: numpy.ndarray,
-    cmp_ch_0_mat: numpy.ndarray,
-    cmp_ch_1_mat: numpy.ndarray,
+    base_ch_mat: np.ndarray,
+    cmp_ch_0_mat: np.ndarray,
+    cmp_ch_1_mat: np.ndarray,
     disp_0: tuple[int, int],
     disp_1: tuple[int, int]
 ) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], tuple[int, int, int, int]]:
     """
-    Find the overlap area between base channel image and two compare channel images
+    Find the overlap area between base channel image and two compare
+    channel images
 
     :param base_ch_mat: base channel image
     :param cmp_ch_0_mat: compare channel 0 image matrix
     :param cmp_ch_1_mat: compare channel 1 image matrix
     :param disp_0: displacement of compare channel 0 image matrix
     :param disp_1: displacement of compare channel 1 image matrix
-    :return: base channel coordinate, compare channel 0 coordinate, compare channel 1 coordinate
+    :return: base channel coordinate, compare channel 0 coordinate,
+             compare channel 1 coordinate
     """
 
-    base_ch_coord_0, cmp_ch_0_coord = channel_overlap(base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_0_mat, disp=disp_0)
-    base_ch_coord_1, cmp_ch_1_coord = channel_overlap(base_ch_mat=base_ch_mat, cmp_ch_mat=cmp_ch_1_mat, disp=disp_1)
+    base_ch_coord_0, cmp_ch_0_coord = channel_overlap(
+        base_ch_mat=base_ch_mat,cmp_ch_mat=cmp_ch_0_mat, disp=disp_0)
+    base_ch_coord_1, cmp_ch_1_coord = channel_overlap(
+        base_ch_mat=base_ch_mat,cmp_ch_mat=cmp_ch_1_mat, disp=disp_1)
 
     # find base channel coordinate (the overlap region between two base channels)
     base_ch_x0 = max(base_ch_coord_0[0], base_ch_coord_1[0])
@@ -295,13 +373,13 @@ def bgr_channel_overlap(
 
 
 def stack_bgr_channels(
-    b_ch_mat: numpy.ndarray,
-    g_ch_mat: numpy.ndarray,
-    r_ch_mat: numpy.ndarray,
+    b_ch_mat: np.ndarray,
+    g_ch_mat: np.ndarray,
+    r_ch_mat: np.ndarray,
     base_ch: str,
     disp_0: tuple[int, int],
     disp_1: tuple[int, int]
-) -> numpy.ndarray:
+) -> np.ndarray:
     """
     Stack B, G, R, channel to form the final RGB image
 
@@ -319,23 +397,35 @@ def stack_bgr_channels(
         exit(1)
 
     if base_ch == 'B':
-        b_ch_coord, g_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_mat=b_ch_mat,
-                                                                 cmp_ch_0_mat=g_ch_mat, cmp_ch_1_mat=r_ch_mat,
-                                                                 disp_0=disp_0, disp_1=disp_1)
+        b_ch_coord, g_ch_coord, r_ch_coord = bgr_channel_overlap(
+            base_ch_mat=b_ch_mat,
+            cmp_ch_0_mat=g_ch_mat,
+            cmp_ch_1_mat=r_ch_mat,
+            disp_0=disp_0,
+            disp_1=disp_1,
+        )
     elif base_ch == 'G':
-        g_ch_coord, b_ch_coord, r_ch_coord = bgr_channel_overlap(base_ch_mat=g_ch_mat,
-                                                                 cmp_ch_0_mat=b_ch_mat, cmp_ch_1_mat=r_ch_mat,
-                                                                 disp_0=disp_0, disp_1=disp_1)
+        g_ch_coord, b_ch_coord, r_ch_coord = bgr_channel_overlap(
+            base_ch_mat=g_ch_mat,
+            cmp_ch_0_mat=b_ch_mat,
+            cmp_ch_1_mat=r_ch_mat,
+            disp_0=disp_0,
+            disp_1=disp_1,
+        )
     elif base_ch == 'R':
-        r_ch_coord, b_ch_coord, g_ch_coord = bgr_channel_overlap(base_ch_mat=r_ch_mat,
-                                                                 cmp_ch_0_mat=b_ch_mat, cmp_ch_1_mat=g_ch_mat,
-                                                                 disp_0=disp_0, disp_1=disp_1)
+        r_ch_coord, b_ch_coord, g_ch_coord = bgr_channel_overlap(
+            base_ch_mat=r_ch_mat,
+            cmp_ch_0_mat=b_ch_mat,
+            cmp_ch_1_mat=g_ch_mat,
+            disp_0=disp_0,
+            disp_1=disp_1,
+        )
 
     b_ch_mat = b_ch_mat[b_ch_coord[1]:b_ch_coord[3], b_ch_coord[0]:b_ch_coord[2]]
     g_ch_mat = g_ch_mat[g_ch_coord[1]:g_ch_coord[3], g_ch_coord[0]:g_ch_coord[2]]
     r_ch_mat = r_ch_mat[r_ch_coord[1]:r_ch_coord[3], r_ch_coord[0]:r_ch_coord[2]]
 
-    mat = numpy.dstack(tup=(b_ch_mat, g_ch_mat, r_ch_mat))
+    mat = np.dstack(tup=(b_ch_mat, g_ch_mat, r_ch_mat))
 
     return mat
 
@@ -343,29 +433,52 @@ def stack_bgr_channels(
 def align(
     filepath: str,
     high_res: bool
-) -> tuple[tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray],
-           tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray],
-           tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]]:
+) -> tuple[tuple[np.ndarray, np.ndarray, np.ndarray],
+           tuple[np.ndarray, np.ndarray, np.ndarray],
+           tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """
     Perform fourier-based alignment with high-res/low-res image
 
     :param filepath: filepath of the image
     :param high_res: process high resolution images or not
-    :return: aligned image matrices, with blue, green, red each being a base channel
+    :return: aligned image matrices, with blue, green, red each being
+             a base channel
     """
 
     if high_res:
         mat = cv2.imread(filename=filepath, flags=cv2.IMREAD_GRAYSCALE)
-        mat = rm_border(mat=mat, border_search_range=config.high_res_border_search_range,
-                        white_thres=config.white_threshold, black_thres=config.black_threshold)
-        b_ch_mat, g_ch_mat, r_ch_mat = split_image(mat=mat, border_search_range=config.high_res_border_search_range)
-        mat_b, mat_g, mat_r = try_ch_align(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat)
+        mat = rm_border(
+            mat=mat,
+            border_search_range=config.high_res_border_search_range,
+            white_thres=config.white_threshold,
+            black_thres=config.black_threshold,
+        )
+        b_ch_mat, g_ch_mat, r_ch_mat = split_image(
+            mat=mat,
+            border_search_range=config.high_res_border_search_range,
+        )
+        mat_b, mat_g, mat_r = try_ch_align(
+            b_ch_mat=b_ch_mat,
+            g_ch_mat=g_ch_mat,
+            r_ch_mat=r_ch_mat,
+        )
     else:
         image = PIL.Image.open(fp=filepath)
-        mat = numpy.asarray(image)
-        mat = rm_border(mat=mat, border_search_range=config.low_res_border_search_range,
-                        white_thres=config.white_threshold, black_thres=config.black_threshold)
-        b_ch_mat, g_ch_mat, r_ch_mat = split_image(mat=mat, border_search_range=config.low_res_border_search_range)
-        mat_b, mat_g, mat_r = try_ch_align(b_ch_mat=b_ch_mat, g_ch_mat=g_ch_mat, r_ch_mat=r_ch_mat)
+        mat = np.asarray(image)
+        mat = rm_border(
+            mat=mat,
+            border_search_range=config.low_res_border_search_range,
+            white_thres=config.white_threshold,
+            black_thres=config.black_threshold,
+        )
+        b_ch_mat, g_ch_mat, r_ch_mat = split_image(
+            mat=mat,
+            border_search_range=config.low_res_border_search_range,
+        )
+        mat_b, mat_g, mat_r = try_ch_align(
+            b_ch_mat=b_ch_mat,
+            g_ch_mat=g_ch_mat,
+            r_ch_mat=r_ch_mat,
+        )
 
     return mat_b, mat_g, mat_r

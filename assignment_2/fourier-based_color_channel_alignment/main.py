@@ -4,14 +4,14 @@ import align
 import config
 import cv2
 import logger
-import matplotlib.pyplot
-import numpy
+import matplotlib.pyplot as plt
+import numpy as np
 import os
-import PIL.Image
+from PIL import Image
 
 
 def main():
-    matplotlib.pyplot.rc(group="font", family="serif")
+    plt.rc(group="font", family="serif")
     # High Resolution Image Alignment
     if config.high_res:
         logger.log_info("Fourier-based color channel alignment with high-resolution images")
@@ -85,26 +85,36 @@ def main():
                 res_img_path = os.path.join(res_img_dir, filename)
                 cv2.imwrite(filename=res_img_path, img=m)
 
-                matplotlib.pyplot.figure()
-                matplotlib.pyplot.imshow(X=numpy.real(val=inv_ft_0))
-                matplotlib.pyplot.title(label=title_0)
-                matplotlib.pyplot.colorbar()
+                plt.figure()
+                plt.imshow(X=np.real(val=inv_ft_0))
+                plt.title(label=title_0)
+                plt.colorbar()
                 inv_ft_path_0 = os.path.join(res_img_dir, inv_ft_name_0)
-                matplotlib.pyplot.savefig(fname=inv_ft_path_0, dpi=1000, format="jpg", bbox_inches="tight")
-                matplotlib.pyplot.close()
+                plt.savefig(
+                    fname=inv_ft_path_0,
+                    dpi=1000,
+                    format="jpg",
+                    bbox_inches="tight",
+                )
+                plt.close()
 
-                matplotlib.pyplot.figure()
-                matplotlib.pyplot.imshow(X=numpy.real(val=inv_ft_1))
-                matplotlib.pyplot.title(label=title_1)
-                matplotlib.pyplot.colorbar()
+                plt.figure()
+                plt.imshow(X=np.real(val=inv_ft_1))
+                plt.title(label=title_1)
+                plt.colorbar()
                 inv_ft_path_1 = os.path.join(res_img_dir, inv_ft_name_1)
-                matplotlib.pyplot.savefig(fname=inv_ft_path_1, dpi=1000, format="jpg", bbox_inches="tight")
-                matplotlib.pyplot.close()
+                plt.savefig(
+                    fname=inv_ft_path_1,
+                    dpi=1000,
+                    format="jpg",
+                    bbox_inches="tight",
+                )
+                plt.close()
 
                 if config.imshow:
                     cv2.imshow(winname="High-Res Image Alignment", mat=m)
                     cv2.waitKey(0)
-                    matplotlib.pyplot.show()
+                    plt.show()
 
     # Low Resolution Image Alignment
     else:
@@ -171,29 +181,34 @@ def main():
                         title_1 = ("Inverse Fourier Transform without LoG\n" + "Align " + config.base_ch_order[1]
                                    + " to " + config.base_ch_order[i])
 
-                image = PIL.Image.fromarray(obj=m)
+                image = Image.fromarray(obj=m)
                 res_img_path = os.path.join(res_img_dir, filename)
                 image.save(fp=res_img_path)
 
-                matplotlib.pyplot.figure()
-                matplotlib.pyplot.imshow(X=numpy.real(val=inv_ft_0))
-                matplotlib.pyplot.title(label=title_0)
-                matplotlib.pyplot.colorbar()
+                plt.figure()
+                plt.imshow(X=np.real(val=inv_ft_0))
+                plt.title(label=title_0)
+                plt.colorbar()
                 inv_ft_path_0 = os.path.join(res_img_dir, inv_ft_name_0)
-                matplotlib.pyplot.savefig(fname=inv_ft_path_0, dpi=1000, format="jpg", bbox_inches="tight")
-                matplotlib.pyplot.close()
+                plt.savefig(fname=inv_ft_path_0, dpi=1000, format="jpg", bbox_inches="tight")
+                plt.close()
 
-                matplotlib.pyplot.figure()
-                matplotlib.pyplot.imshow(X=numpy.real(val=inv_ft_1))
-                matplotlib.pyplot.title(label=title_1)
-                matplotlib.pyplot.colorbar()
+                plt.figure()
+                plt.imshow(X=np.real(val=inv_ft_1))
+                plt.title(label=title_1)
+                plt.colorbar()
                 inv_ft_path_1 = os.path.join(res_img_dir, inv_ft_name_1)
-                matplotlib.pyplot.savefig(fname=inv_ft_path_1,  dpi=1000, format="jpg", bbox_inches="tight")
-                matplotlib.pyplot.close()
+                plt.savefig(
+                    fname=inv_ft_path_1,
+                    dpi=1000,
+                    format="jpg",
+                    bbox_inches="tight",
+                )
+                plt.close()
 
                 if config.imshow:
                     image.show(title="Low-Red Image Alignment")
-                    matplotlib.pyplot.show()
+                    plt.show()
 
     return
 
