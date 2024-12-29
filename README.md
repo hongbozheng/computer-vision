@@ -1,4 +1,4 @@
-# CS 543 --- Computer Vision
+# CS543 Computer Vision
 
 Computer Vision Materials
 
