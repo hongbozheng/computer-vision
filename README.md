@@ -1,6 +1,6 @@
 # CS543 Computer Vision
 
-Computer Vision Materials
+Computer Vision Materials.
 
 Instructor: D.A. Forsyth
 
