@@ -1,6 +1,6 @@
 # Fourier-based Alignment and Finding Covariant Neighborhoods
 
-- [Fourier-based Color Channel Alignment](https://gitlab.engr.illinois.edu/hongboz2/computer_vision/-/tree/main/assignment_2/fourier-based_color_channel_alignment)
+- [Fourier-based Color Channel Alignment](https://github.com/hongbozheng/computer-vision/tree/main/assignment_2/fourier-based_color_channel_alignment)
 
   - For the first part of this assignment, we will revisit the color channel 
   alignment that you performed in Assignment 1. The goal in this assignment 
@@ -11,7 +11,7 @@
   for an N by M image. As a result, Fourier-based alignment may provide an 
   efficient alternative to sliding window alignment approaches for high-resolution images.
 
-- [Scale-space Blob Construction](https://gitlab.engr.illinois.edu/hongboz2/computer_vision/-/tree/main/assignment_2/scale-space_blob_construction)
+- [Scale-space Blob Construction](https://github.com/hongbozheng/computer-vision/tree/main/assignment_2/scale-space_blob_construction)
 
   - The goal of Part 2 of the assignment is to build a blob coordinate system as 
   discussed in lecture (and slides, and notes!).
