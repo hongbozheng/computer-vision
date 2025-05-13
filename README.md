@@ -27,8 +27,7 @@ I, the author, **explicitly disclaim any responsibility** for academic code of c
 
 If you are currently enrolled in a course that includes similar assignments or projects:
 
-Do **not copy**, **fork**, **or adapt** this repository for coursework submission.
-
-Use this repository only as a high-level learning reference after completing your own work.
+- Do **not copy**, **fork**, **or adapt** this repository for coursework submission.
+- Use this repository only as a high-level learning reference after completing your own work.
 
 By viewing or interacting with this repository, you acknowledge that you understand and agree to these terms.
