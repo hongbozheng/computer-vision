@@ -2,8 +2,6 @@
 
 Computer Vision Materials.
 
-Instructor: D.A. Forsyth
-
 ## 📝 Assignments
 - [Registering Prokudin-Gorskii Color Separations of the Russian Empire](https://github.com/hongbozheng/computer-vision/tree/main/assignment_1)
 
