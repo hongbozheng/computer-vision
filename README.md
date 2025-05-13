@@ -4,7 +4,7 @@ Computer Vision Materials.
 
 Instructor: D.A. Forsyth
 
-## 💻 Assignments
+## 📝 Assignments
 - [Registering Prokudin-Gorskii Color Separations of the Russian Empire](https://github.com/hongbozheng/computer-vision/tree/main/assignment_1)
 
 - [Fourier-based Alignment and Finding Covariant Neighborhoods](https://github.com/hongbozheng/computer-vision/tree/main/assignment_2)
